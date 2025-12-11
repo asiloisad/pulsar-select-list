@@ -65,6 +65,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `filter: (items: [Object], query: String) -> [Object]`: a function that allows to decide which items to show whenever the query changes. By default, it uses Pulsar's built-in fuzzy matcher.
 * `filterKeyForItem: (item: Object) -> String`: when `filter` is not provided, this function will be called to retrieve a string property on each item and that will be used to filter them.
 * `filterQuery: (query: String) -> String`: a function that allows to apply a transformation to the user query and whose return value will be used to filter items.
+* `filterReplaceDiacritics: Boolean`: when `true` (default), removes diacritical marks from both the query and item text before filtering, enabling accent-insensitive matching (e.g., "cafe" matches "café").
 * `query: String`: a string that will replace the contents of the query editor.
 * `selectQuery: Boolean`: a boolean indicating whether the query text should be selected or not.
 * `order: (item1: Object, item2: Object) -> Number`: a function that allows to change the order in which items are shown.
@@ -142,6 +143,20 @@ const fragment = SelectListView.highlightMatches(text, matches, {
   * `className: String`: CSS class for highlighted spans; defaults to `'character-match'`.
 
 Returns a `DocumentFragment` containing text nodes and `<span>` elements with the specified class.
+
+#### `SelectListView.replaceDiacritics(str)`
+
+Removes diacritical marks (accents) from a string.
+
+```js
+SelectListView.replaceDiacritics('café') // => 'cafe'
+SelectListView.replaceDiacritics('naïve') // => 'naive'
+SelectListView.replaceDiacritics('Müller') // => 'Muller'
+```
+
+* `str: String`: the string to process.
+
+Returns the string with diacritical marks removed. Uses `String.normalize('NFD')` internally.
 
 #### `SelectListView.setScheduler(scheduler)`
 
