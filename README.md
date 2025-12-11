@@ -60,6 +60,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 
 #### Optional
 
+* `className: String`: CSS class name(s) to add to the select list element. Multiple classes can be space-separated.
 * `maxResults: Number`: the number of maximum items that are shown.
 * `filter: (items: [Object], query: String) -> [Object]`: a function that allows to decide which items to show whenever the query changes. By default, it uses Pulsar's built-in fuzzy matcher.
 * `filterKeyForItem: (item: Object) -> String`: when `filter` is not provided, this function will be called to retrieve a string property on each item and that will be used to filter them.
@@ -91,7 +92,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 
 #### Panel Management
 
-* `show()`: Shows the select list as a modal panel and focuses the query editor. Calls `didRequestShow` callback if provided.
+* `show()`: Shows the select list as a modal panel and focuses the query editor. Calls `willShow` callback if provided.
 * `hide()`: Hides the panel and restores focus to the previously focused element.
 * `toggle()`: Toggles the visibility of the panel.
 * `isVisible()`: Returns `true` if the panel is currently visible.
@@ -158,6 +159,7 @@ const SelectListView = require('pulsar-select-list')
 class MyFileList {
   constructor() {
     this.selectList = new SelectListView({
+      className: 'my-file-list',
       items: [],
       elementForItem: (item, { selected }) => {
         const li = document.createElement('li')
@@ -177,7 +179,7 @@ class MyFileList {
       didCancelSelection: () => {
         this.selectList.hide()
       },
-      didRequestShow: () => {
+      willShow: () => {
         this.loadFiles()
       },
       didChangeQuery: (query) => {
