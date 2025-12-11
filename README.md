@@ -1,12 +1,11 @@
-##### Atom and all repositories under Atom will be archived on December 15, 2022. Learn more in our [official announcement](https://github.blog/2022-06-08-sunsetting-atom/)
- # atom-select-list
+ # pulsar-select-list
 
 This module is an [etch component](https://github.com/atom/etch) that can be used in Atom packages to show a select list with fuzzy filtering, keyboard/mouse navigation and other cool features.
 
 ## Installation
 
 ```bash
-npm install --save atom-select-list
+npm install --save pulsar-select-list
 ```
 
 ## Usage
@@ -14,7 +13,7 @@ npm install --save atom-select-list
 After installing the module, you can simply require it and use it as a standalone component:
 
 ```js
-const SelectList = require('atom-select-list')
+const SelectList = require('pulsar-select-list')
 
 const usersSelectList = new SelectList({
   items: ['Alice', 'Bob', 'Carol']
