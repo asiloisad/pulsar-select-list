@@ -8,8 +8,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "etch": "^0.14.0",
-    "fuzzaldrin": "^2.1.0"
+    "etch": "^0.14.0"
   },
   "repository": {
     "type": "git",
