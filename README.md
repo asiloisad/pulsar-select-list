@@ -166,6 +166,35 @@ SelectListView.replaceDiacritics('Müller') // => 'Muller'
 
 Returns the string with diacritical marks removed. Uses `String.normalize('NFD')` internally.
 
+#### `SelectListView.createTwoLineItem(options)`
+
+Creates a two-line list item element with primary and optional secondary lines. This is a convenience helper for the common Atom/Pulsar two-line item pattern.
+
+```js
+const li = SelectListView.createTwoLineItem({
+  primary: SelectListView.highlightMatches(item.name, matches),
+  secondary: item.description,
+  icon: ['icon-file-text'],
+  data: { path: item.path },
+  classes: ['my-item']
+})
+```
+
+* `options: Object`:
+  * `primary: String|Node`: Primary line content (text string or DOM node)
+  * `secondary: String|Node` (optional): Secondary line content
+  * `icon: [String]` (optional): Icon class names to add to primary line (adds `icon` class automatically)
+  * `data: Object` (optional): Data attributes to set on primary line (e.g., `{path: '/foo'}` becomes `data-path="/foo"`)
+  * `classes: [String]` (optional): Additional CSS classes for the `<li>` element
+
+Returns an `HTMLLIElement` with the structure:
+```html
+<li class="two-lines [classes]">
+  <div class="primary-line icon [icon]" data-[key]="[value]">[primary]</div>
+  <div class="secondary-line">[secondary]</div>
+</li>
+```
+
 #### `SelectListView.setScheduler(scheduler)`
 
 Sets the etch scheduler.
