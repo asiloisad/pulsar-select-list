@@ -65,7 +65,9 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `filter: (items: [Object], query: String) -> [Object]`: a function that allows to decide which items to show whenever the query changes. By default, it uses Pulsar's built-in fuzzy matcher.
 * `filterKeyForItem: (item: Object) -> String`: when `filter` is not provided, this function will be called to retrieve a string property on each item and that will be used to filter them.
 * `filterQuery: (query: String) -> String`: a function that allows to apply a transformation to the user query and whose return value will be used to filter items.
-* `filterReplaceDiacritics: Boolean`: when `true` (default), removes diacritical marks from both the query and item text before filtering, enabling accent-insensitive matching (e.g., "cafe" matches "café").
+* `replaceDiacritics: Boolean`: when `true` (default), removes diacritical marks from both the query and item text before filtering, enabling accent-insensitive matching (e.g., "cafe" matches "café"). Set to `false` to disable.
+* `filterScoreModifier: (score: Number, item: Object) -> Number`: a function to modify the fuzzy match score for each item. Useful for applying custom ranking factors (e.g., boosting by recency or proximity).
+* `filterThreshold: Number`: minimum score required for an item to be included in results; defaults to `0`. Scores at or below this threshold are filtered out.
 * `query: String`: a string that will replace the contents of the query editor.
 * `selectQuery: Boolean`: a boolean indicating whether the query text should be selected or not.
 * `order: (item1: Object, item2: Object) -> Number`: a function that allows to change the order in which items are shown.
@@ -89,6 +91,11 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `didCancelSelection: () -> Void`: called when the user presses Esc or the list loses focus.
 * `willShow: () -> Void`: called when transitioning from hidden to visible, useful for data preparation.
 
+### Instance Properties
+
+* `processedQuery: String`: The cached result of `getFilterQuery()`, updated after each query change. Useful in `elementForItem` to avoid calling `getFilterQuery()` multiple times.
+* `refs.queryEditor`: The underlying TextEditor component for the query input.
+
 ### Instance Methods
 
 #### Panel Management
@@ -105,7 +112,8 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `destroy()`: Disposes of the component and cleans up resources.
 * `update(props)`: Updates the component with new props.
 * `getQuery()`: Returns the current query string.
-* `getFilterQuery()`: Returns the filtered query string.
+* `getFilterQuery()`: Returns the filtered query string (applies `filterQuery` transformation).
+* `setQueryFromSelection()`: Sets the query text from the active editor's selection. Returns `true` if successful, `false` if no editor, no selection, or selection contains newlines.
 * `getSelectedItem()`: Returns the currently selected item.
 * `selectPrevious()`: Selects the previous item.
 * `selectNext()`: Selects the next item.
@@ -178,8 +186,9 @@ class MyFileList {
       items: [],
       elementForItem: (item, { selected }) => {
         const li = document.createElement('li')
-        const matches = this.query
-          ? atom.ui.fuzzyMatcher.match(this.query, item.name, {
+        const query = this.selectList.processedQuery || ''
+        const matches = query
+          ? atom.ui.fuzzyMatcher.match(item.name, query, {
               recordMatchIndexes: true
             }).matchIndexes
           : []
@@ -196,9 +205,6 @@ class MyFileList {
       },
       willShow: () => {
         this.loadFiles()
-      },
-      didChangeQuery: (query) => {
-        this.query = query
       }
     })
   }
@@ -216,4 +222,27 @@ class MyFileList {
     this.selectList.destroy()
   }
 }
+```
+
+### Advanced: Custom Score Modifier
+
+Use `filterScoreModifier` and `filterThreshold` to customize ranking:
+
+```js
+const selectList = new SelectListView({
+  items: files,
+  elementForItem: (item) => {
+    const li = document.createElement('li')
+    li.textContent = item.path
+    return li
+  },
+  filterKeyForItem: (item) => item.path,
+  // Boost score by proximity (items closer to current file rank higher)
+  filterScoreModifier: (score, item) => score / item.distance,
+  // Only show items with meaningful scores
+  filterThreshold: 0.01,
+  didConfirmSelection: (item) => {
+    atom.workspace.open(item.path)
+  }
+})
 ```
