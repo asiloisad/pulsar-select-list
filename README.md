@@ -431,14 +431,6 @@ Create a `help.md` file with your help content:
 ```markdown
 - **Enter** — Confirm selection
 - **Alt+Enter** — Alternative action
-- **F12** — Toggle this help
 ```
 
-Add F12 keybinding to toggle help (keymaps/my-package.cson):
-
-```cson
-'.my-list atom-text-editor[mini]':
-  'f12': 'select-list:help'
-```
-
-The `select-list:help` command is registered automatically by the component.
+Press ` in editor to switch into help view.
