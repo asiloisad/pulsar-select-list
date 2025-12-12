@@ -6,7 +6,7 @@ This module is an [etch component](https://github.com/atom/etch) that can be use
 
 ```json
 "dependencies": {
-  "pulsar-select-list": "github:asiloisad/pulsar-select-list"
+  "pulsar-select-list": "^1.0.0"
 }
 ```
 
@@ -189,9 +189,7 @@ Creates a two-line list item element with primary and optional secondary lines. 
 const li = SelectListView.createTwoLineItem({
   primary: SelectListView.highlightMatches(item.name, matches),
   secondary: item.description,
-  icon: ['icon-file-text'],
-  data: { path: item.path },
-  classes: ['my-item']
+  icon: ['icon-file-text']
 })
 ```
 
@@ -199,13 +197,11 @@ const li = SelectListView.createTwoLineItem({
   * `primary: String|Node`: Primary line content (text string or DOM node)
   * `secondary: String|Node` (optional): Secondary line content
   * `icon: [String]` (optional): Icon class names to add to primary line (adds `icon` class automatically)
-  * `data: Object` (optional): Data attributes to set on primary line (e.g., `{path: '/foo'}` becomes `data-path="/foo"`)
-  * `classes: [String]` (optional): Additional CSS classes for the `<li>` element
 
 Returns an `HTMLLIElement` with the structure:
 ```html
-<li class="two-lines [classes]">
-  <div class="primary-line icon [icon]" data-[key]="[value]">[primary]</div>
+<li class="two-lines">
+  <div class="primary-line icon [icon]">[primary]</div>
   <div class="secondary-line">[secondary]</div>
 </li>
 ```
@@ -319,7 +315,7 @@ If you're migrating from `atom-select-list`, here are the key changes:
 ```diff
 "dependencies": {
 -  "atom-select-list": "^0.8.1",
-+  "pulsar-select-list": "github:asiloisad/pulsar-select-list"
++  "pulsar-select-list": "^1.0.0"
 }
 ```
 
