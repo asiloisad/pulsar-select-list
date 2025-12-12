@@ -279,3 +279,141 @@ const selectList = new SelectListView({
   }
 })
 ```
+
+## Migration from atom-select-list
+
+If you're migrating from `atom-select-list`, here are the key changes:
+
+### Package.json
+
+```diff
+"dependencies": {
+-  "atom-select-list": "^0.8.1",
++  "pulsar-select-list": "github:asiloisad/pulsar-select-list"
+}
+```
+
+### Import
+
+```diff
+-const SelectListView = require('atom-select-list')
++const SelectListView = require('pulsar-select-list')
+```
+
+### Panel Management
+
+The component now manages its own panel. Remove custom panel handling:
+
+```diff
+-this.panel = null
+-this.previouslyFocusedElement = null
+
+this.slv = new SelectListView({
++  className: 'my-list',
+   items: [],
++  willShow: () => this.onWillShow(),
+   // ...
+})
+-this.slv.element.classList.add('my-list')
+
+-showView() {
+-  this.previouslyFocusedElement = document.activeElement
+-  if (!this.panel) {
+-    this.panel = atom.workspace.addModalPanel({ item: this.slv })
+-  }
+-  this.panel.show()
+-  this.slv.focus()
+-}
+-
+-hideView() {
+-  this.panel.hide()
+-  if (this.previouslyFocusedElement) {
+-    this.previouslyFocusedElement.focus()
+-  }
+-}
+-
+-toggleView() {
+-  if (this.panel && this.panel.isVisible()) {
+-    this.hideView()
+-  } else {
+-    this.showView()
+-  }
+-}
+
+// Use built-in methods:
+-this.toggleView()
++this.slv.toggle()
+
+-this.hideView()
++this.slv.hide()
+```
+
+### Diacritics
+
+Replace external diacritics library with built-in static method:
+
+```diff
+-const Diacritics = require('diacritic')
+
+-Diacritics.clean(text)
++SelectListView.replaceDiacritics(text)
+```
+
+### Query Access
+
+Use `processedQuery` instead of storing query in filter:
+
+```diff
+filter(items, query) {
+-  this.query = query
++  // query is passed to filter, use this.slv.processedQuery in elementForItem
+}
+
+elementForItem(item, options) {
+-  const query = this.query
++  const query = this.slv.processedQuery || ''
+}
+```
+
+### Highlighting
+
+Use built-in `highlightMatches` static method:
+
+```diff
+-this.highlightInElement(el, text, indices)
++el.appendChild(SelectListView.highlightMatches(text, indices))
+```
+
+
+### Help Message
+
+Replace `infoMessage` with `helpMessage` and F12 toggle:
+
+```diff
+this.slv = new SelectListView({
+-  // No help by default
++  placeholderText: 'F12 for help',
++  helpMessage: this.getHelpMessage(),
+})
+
+-atom.config.observe('my-package.showKeystrokes', (value) => {
+-  this.slv.update({ infoMessage: value ? [...] : null })
+-})
+
++getHelpMessage() {
++  return [
++    <div class="help-section">
++      <div class="help-row"><span class="keystroke">Enter</span> Confirm</div>
++    </div>,
++  ]
++}
+
+// Add command for F12 toggle
+atom.commands.add(this.slv.element, {
++  'my-package:toggle-help': () => this.slv.toggleHelp(),
+})
+
+// Add keymap (keymaps/my-package.cson)
++'.my-list':
++  'f12': 'my-package:toggle-help'
+```
