@@ -1,11 +1,8 @@
 {
   "name": "pulsar-select-list",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "A general-purpose select list for use in Pulsar packages",
   "main": "select.js",
-  "files": [
-    "lib/**/*"
-  ],
   "license": "MIT",
   "dependencies": {
     "etch": "^0.14.0"
