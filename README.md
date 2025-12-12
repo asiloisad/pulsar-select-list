@@ -6,7 +6,7 @@ This module is an [etch component](https://github.com/atom/etch) that can be use
 
 ```json
 "dependencies": {
-  "pulsar-select-list": "^1.0.0"
+  "pulsar-select-list": "^1.0.2"
 }
 ```
 
@@ -300,7 +300,7 @@ If you're migrating from `atom-select-list`, here are the key changes:
 ```diff
 "dependencies": {
 -  "atom-select-list": "^0.8.1",
-+  "pulsar-select-list": "^1.0.0"
++  "pulsar-select-list": "^1.0.2"
 }
 ```
 
