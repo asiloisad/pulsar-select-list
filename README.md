@@ -75,6 +75,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `errorMessage: String`: a string that needs to be set when you want to notify the user that an error occurred.
 * `infoMessage: String`: a string that needs to be set when you want to provide some information to the user.
 * `helpMessage: String|Array`: content to display when help is toggled. Use `toggleHelp()` to show/hide. Can be a string or JSX array for rich formatting.
+* `helpMarkdown: String`: markdown content to display when help is toggled. Rendered using Pulsar's built-in markdown renderer. Preferred over `helpMessage` for simple help text stored in `.md` files.
 * `loadingMessage: String`: a string that needs to be set when you are loading items in the background.
 * `loadingBadge: String/Number`: a string or number that needs to be set when the progress status changes.
 * `itemsClassList: [String]`: an array of strings that will be added as class names to the items element.
@@ -82,6 +83,16 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `initiallyVisibleItemCount: Number`: When provided, `SelectListView` observes visibility of items in viewport, visibility state is passed as `visible` option to `elementForItem`.
 * `placeholderText: String`: placeholder text to display in the query editor when empty.
 * `skipCommandsRegistration: Boolean`: when `true`, skips registering default keyboard commands.
+
+### Registered Commands
+
+By default, the component registers these commands on its element:
+
+* `core:move-up` / `core:move-down`: Navigate items
+* `core:move-to-top` / `core:move-to-bottom`: Jump to first/last item
+* `core:confirm`: Confirm selection
+* `core:cancel`: Cancel selection
+* `select-list:help`: Toggle help message visibility (requires `helpMessage` or `helpMarkdown`)
 
 #### Callbacks
 
@@ -211,34 +222,53 @@ Gets the current etch scheduler.
 
 ```js
 const SelectListView = require('pulsar-select-list')
+const fs = require('fs')
+const path = require('path')
 
 class MyFileList {
   constructor() {
     this.selectList = new SelectListView({
-      className: 'my-file-list',
+      className: 'my-package my-file-list',
       items: [],
-      elementForItem: (item, { selected }) => {
+      filterKeyForItem: (item) => item.name,
+      emptyMessage: 'No files found',
+      helpMarkdown: fs.readFileSync(path.join(__dirname, 'help.md'), 'utf8'),
+
+      willShow: () => {
+        this.previouslyFocusedElement = document.activeElement
+        this.loadFiles()
+      },
+
+      elementForItem: (item, options) => {
         const li = document.createElement('li')
+        if (!options.visible) {
+          return li
+        }
+
         const query = this.selectList.processedQuery || ''
         const matches = query
           ? atom.ui.fuzzyMatcher.match(item.name, query, {
               recordMatchIndexes: true
             }).matchIndexes
           : []
+
         li.appendChild(SelectListView.highlightMatches(item.name, matches))
+
+        li.addEventListener('contextmenu', () => {
+          this.selectList.selectIndex(options.index)
+        })
+
         return li
       },
-      filterKeyForItem: (item) => item.name,
+
       didConfirmSelection: (item) => {
         atom.workspace.open(item.path)
         this.selectList.hide()
       },
+
       didCancelSelection: () => {
         this.selectList.hide()
       },
-      willShow: () => {
-        this.loadFiles()
-      }
     })
   }
 
@@ -387,33 +417,32 @@ Use built-in `highlightMatches` static method:
 
 ### Help Message
 
-Replace `infoMessage` with `helpMessage` and F12 toggle:
+Replace `infoMessage` with `helpMarkdown` and the built-in `select-list:help` command:
 
 ```diff
 this.slv = new SelectListView({
 -  // No help by default
-+  placeholderText: 'F12 for help',
-+  helpMessage: this.getHelpMessage(),
++  helpMarkdown: fs.readFileSync(path.join(__dirname, 'help.md'), 'utf8'),
 })
 
 -atom.config.observe('my-package.showKeystrokes', (value) => {
 -  this.slv.update({ infoMessage: value ? [...] : null })
 -})
-
-+getHelpMessage() {
-+  return [
-+    <div class="help-section">
-+      <div class="help-row"><span class="keystroke">Enter</span> Confirm</div>
-+    </div>,
-+  ]
-+}
-
-// Add command for F12 toggle
-atom.commands.add(this.slv.element, {
-+  'my-package:toggle-help': () => this.slv.toggleHelp(),
-})
-
-// Add keymap (keymaps/my-package.cson)
-+'.my-list':
-+  'f12': 'my-package:toggle-help'
 ```
+
+Create a `help.md` file with your help content:
+
+```markdown
+- **Enter** — Confirm selection
+- **Alt+Enter** — Alternative action
+- **F12** — Toggle this help
+```
+
+Add F12 keybinding to toggle help (keymaps/my-package.cson):
+
+```cson
+'.my-list atom-text-editor[mini]':
+  'f12': 'select-list:help'
+```
+
+The `select-list:help` command is registered automatically by the component.
