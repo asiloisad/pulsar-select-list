@@ -1,0 +1,53 @@
+.select-list-query-row {
+  position: relative;
+  .select-list-help-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    opacity: 0.5;
+    z-index: 1;
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.select-list .list-group {
+  overflow-x: hidden;
+}
+
+.select-list .empty-message {
+  color: @text-color-info;
+  margin-top: 10px;
+}
+
+.select-list .error-message {
+  color: @text-color-error;
+  margin-top: 10px;
+}
+
+.select-list .loading {
+  display: flex;
+  align-items: center;
+}
+
+.select-list .keystroke {
+  border: solid 1px;
+  padding: .2em .4em;
+  border-radius: 4px;
+}
+
+.select-list .help-message {
+  p, ul, ol {
+    margin: 0;
+  }
+  ul, ol {
+    padding-left: 1.5em;
+  }
+  .help-note {
+    color: @text-color-subtle;
+    font-size: 0.9em;
+  }
+}

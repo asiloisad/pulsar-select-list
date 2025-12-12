@@ -124,6 +124,12 @@ class SelectListView {
       this.element.classList.add(...props.className.split(/\s+/).filter(Boolean))
     }
     this.disposables.add(this.refs.queryEditor.onDidChange(this.didChangeQuery.bind(this)))
+    this.disposables.add(this.refs.queryEditor.onWillInsertText((event) => {
+      if (event.text === '`') {
+        event.cancel()
+        this.toggleHelp()
+      }
+    }))
     if (props.placeholderText) {
       this.refs.queryEditor.setPlaceholderText(props.placeholderText)
     }
@@ -398,15 +404,15 @@ class SelectListView {
   renderQueryRow() {
     if (this.props.helpMessage || this.props.helpMarkdown) {
       return $.div(
-        {className: 'select-list-query-row'},
-        $(TextEditor, {ref: 'queryEditor', mini: true}),
+        { className: 'select-list-query-row' },
+        $(TextEditor, { ref: 'queryEditor', mini: true }),
         $.span({
           className: 'select-list-help-toggle icon-question',
-          on: {click: () => this.toggleHelp()}
+          on: { click: () => this.toggleHelp() }
         })
       )
     }
-    return $(TextEditor, {ref: 'queryEditor', mini: true})
+    return $(TextEditor, { ref: 'queryEditor', mini: true })
   }
 
   renderItems() {
@@ -428,7 +434,7 @@ class SelectListView {
         const selected = this.getSelectedItem() === item
         const visible = !this.props.initiallyVisibleItemCount || index < this.props.initiallyVisibleItemCount
         return $(ListItemView, {
-          element: this.props.elementForItem(item, {selected, index, visible}),
+          element: this.props.elementForItem(item, { selected, index, visible }),
           selected: selected,
           onclick: () => this.didClickItem(index),
           oncontextmenu: () => this.selectIndex(index)
@@ -436,11 +442,11 @@ class SelectListView {
       })
 
       return $.ol(
-        {className, ref: 'items'},
+        { className, ref: 'items' },
         ...this.listItems
       )
     } else if (!this.props.loadingMessage && !this.isHelpMode() && this.props.emptyMessage) {
-      return $.div({ref: 'emptyMessage', className: 'empty-message'}, this.props.emptyMessage)
+      return $.div({ ref: 'emptyMessage', className: 'empty-message' }, this.props.emptyMessage)
     } else {
       return ""
     }
@@ -448,7 +454,7 @@ class SelectListView {
 
   renderErrorMessage() {
     if (this.props.errorMessage) {
-      return $.div({ref: 'errorMessage', className: 'error-message'}, this.props.errorMessage)
+      return $.div({ ref: 'errorMessage', className: 'error-message' }, this.props.errorMessage)
     } else {
       return ''
     }
@@ -456,7 +462,7 @@ class SelectListView {
 
   renderInfoMessage() {
     if (this.props.infoMessage) {
-      return $.div({ref: 'infoMessage', className: 'info-message'}, this.props.infoMessage)
+      return $.div({ ref: 'infoMessage', className: 'info-message' }, this.props.infoMessage)
     } else {
       return ''
     }
@@ -465,10 +471,10 @@ class SelectListView {
   renderLoadingMessage() {
     if (this.props.loadingMessage) {
       return $.div(
-        {className: 'loading'},
-        $.div({ref: 'loadingMessage', className: 'loading-message'}, this.props.loadingMessage),
-        $.span({className: 'loading loading-spinner-tiny inline-block'}),
-        this.props.loadingBadge ? $.span({ref: 'loadingBadge', className: 'badge'}, this.props.loadingBadge) : ''
+        { className: 'loading' },
+        $.div({ ref: 'loadingMessage', className: 'loading-message' }, this.props.loadingMessage),
+        $.span({ className: 'loading loading-spinner-tiny inline-block' }),
+        this.props.loadingBadge ? $.span({ ref: 'loadingBadge', className: 'badge' }, this.props.loadingBadge) : ''
       )
     } else {
       return ''
@@ -480,10 +486,10 @@ class SelectListView {
       return ''
     }
     if (this.props.helpMarkdown) {
-      return $.div({ref: 'helpMarkdownContainer', className: 'help-message'})
+      return $.div({ ref: 'helpMarkdownContainer', className: 'help-message' })
     }
     if (this.props.helpMessage) {
-      return $.div({ref: 'helpMessage', className: 'help-message'}, this.props.helpMessage)
+      return $.div({ ref: 'helpMessage', className: 'help-message' }, this.props.helpMessage)
     }
     return ''
   }
@@ -609,12 +615,12 @@ class SelectListView {
         score = modifyScore(score, item)
       }
       if (score > threshold) {
-        scoredItems.push({item, score, matchIndexes: result.matchIndexes})
+        scoredItems.push({ item, score, matchIndexes: result.matchIndexes })
       }
     }
 
     scoredItems.sort((a, b) => b.score - a.score)
-    for (const {item, matchIndexes} of scoredItems) {
+    for (const { item, matchIndexes } of scoredItems) {
       this.matchIndicesMap.set(item, matchIndexes)
     }
     return scoredItems.map((i) => i.item)
@@ -635,7 +641,7 @@ class SelectListView {
     const component = this.listItems[index].component
     if (this.visibilityObserver) this.visibilityObserver.unobserve(component.element)
     component.update({
-      element: this.props.elementForItem(item, {selected, index, visible: true}),
+      element: this.props.elementForItem(item, { selected, index, visible: true }),
       selected: selected,
       onclick: () => this.didClickItem(index),
       oncontextmenu: () => this.selectIndex(index)
