@@ -74,12 +74,13 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `emptyMessage: String`: a string shown when the list is empty.
 * `errorMessage: String`: a string that needs to be set when you want to notify the user that an error occurred.
 * `infoMessage: String`: a string that needs to be set when you want to provide some information to the user.
+* `helpMessage: String|Array`: content to display when help is toggled. Use `toggleHelp()` to show/hide. Can be a string or JSX array for rich formatting.
 * `loadingMessage: String`: a string that needs to be set when you are loading items in the background.
 * `loadingBadge: String/Number`: a string or number that needs to be set when the progress status changes.
 * `itemsClassList: [String]`: an array of strings that will be added as class names to the items element.
 * `initialSelectionIndex: Number`: the index of the item to initially select; defaults to `0`.
 * `initiallyVisibleItemCount: Number`: When provided, `SelectListView` observes visibility of items in viewport, visibility state is passed as `visible` option to `elementForItem`.
-* `preserveLastSearch: Boolean`: when `true`, the query text is preserved and selected when showing the list; defaults to `false`.
+* `placeholderText: String`: placeholder text to display in the query editor when empty.
 * `skipCommandsRegistration: Boolean`: when `true`, skips registering default keyboard commands.
 
 #### Callbacks
@@ -104,6 +105,9 @@ When creating a new instance of a select list, or when calling `update` on an ex
 * `hide()`: Hides the panel and restores focus to the previously focused element.
 * `toggle()`: Toggles the visibility of the panel.
 * `isVisible()`: Returns `true` if the panel is currently visible.
+* `isHelpMode()`: Returns `true` if help is currently displayed.
+* `toggleHelp()`: Toggles help message visibility. Only works if `helpMessage` is set.
+* `hideHelp()`: Hides help message if currently shown.
 
 #### Other Methods
 
