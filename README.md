@@ -2,14 +2,6 @@
 
 This module is an [etch component](https://github.com/atom/etch) that can be used in Pulsar packages to show a select list with fuzzy filtering, keyboard/mouse navigation and other cool features.
 
-## Installation
-
-```json
-"dependencies": {
-  "pulsar-select-list": "^1.0.2"
-}
-```
-
 ## Usage
 
 After installing the module, you can simply require it and use it as a standalone component:
@@ -224,32 +216,26 @@ class MyFileList {
   constructor() {
     this.selectList = new SelectListView({
       className: "my-package my-file-list",
-      items: [],
+      items: [], // initialize required
       filterKeyForItem: (item) => item.name,
       emptyMessage: "No files found",
       helpMarkdown: fs.readFileSync(path.join(__dirname, "help.md"), "utf8"),
-
       willShow: () => {
         this.loadFiles();
       },
-
       elementForItem: (item, options) => {
         const li = document.createElement("li");
         const matches = this.selectList.getMatchIndices(item) || [];
         li.appendChild(SelectListView.highlightMatches(item.name, matches));
-
         li.addEventListener("contextmenu", () => {
           this.selectList.selectIndex(options.index);
         });
-
         return li;
       },
-
       didConfirmSelection: (item) => {
         atom.workspace.open(item.path);
         this.selectList.hide();
       },
-
       didCancelSelection: () => {
         this.selectList.hide();
       },
@@ -300,8 +286,8 @@ If you're migrating from `atom-select-list`, here are the key changes:
 
 ```diff
 "dependencies": {
--  "atom-select-list": "^0.8.1",
-+  "pulsar-select-list": "^1.0.2"
+-  "atom-select-list": ...,
++  "pulsar-select-list": ...
 }
 ```
 
@@ -385,27 +371,3 @@ elementForItem(item, options) {
    el.appendChild(SelectListView.highlightMatches(item.name, matches))
 }
 ```
-
-### Help Message
-
-Replace `infoMessage` with `helpMarkdown` and the built-in `select-list:help` command:
-
-```diff
-this.selectList = new SelectListView({
--  // No help by default
-+  helpMarkdown: fs.readFileSync(path.join(__dirname, 'help.md'), 'utf8'),
-})
-
--atom.config.observe('my-package.showKeystrokes', (value) => {
--  this.selectList.update({ infoMessage: value ? [...] : null })
--})
-```
-
-Create a `help.md` file with your help content:
-
-```markdown
-- **Enter** — Confirm selection
-- **Alt+Enter** — Alternative action
-```
-
-Press ` in editor to switch into help view.

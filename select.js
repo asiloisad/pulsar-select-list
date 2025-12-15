@@ -138,8 +138,8 @@ class SelectListView {
     }
 
     const active = document.activeElement;
-    if (active && !active.closest(".select-list")) {
-      this.previouslyFocusedElement = active;
+    if (active && !active.closest(".modal")) {
+      document.previousFocusElement = active;
     }
 
     this.refs.queryEditor.selectAll();
@@ -150,6 +150,7 @@ class SelectListView {
 
     this.panel.show();
     this.focus();
+
   }
 
   /**
@@ -164,9 +165,9 @@ class SelectListView {
       this.panel.hide();
     }
 
-    if (this.previouslyFocusedElement) {
-      this.previouslyFocusedElement.focus();
-      this.previouslyFocusedElement = null;
+    if (document.previousFocusElement) {
+      document.previousFocusElement.focus();
+      delete document.previousFocusElement
     }
   }
 
