@@ -4,6 +4,11 @@ const { Disposable, CompositeDisposable, TextEditor } = require("atom");
 const etch = require("etch");
 const $ = etch.dom;
 
+function replaceDiacritics(str) {
+  if (!str) return "";
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 class SelectListView {
   static schedulerInitialized = false;
 
@@ -27,100 +32,6 @@ class SelectListView {
     }
   }
 
-  static replaceDiacritics(str) {
-    if (!str) return "";
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  }
-
-  static highlightMatches(text, matchIndices, options = {}) {
-    const { className = "character-match" } = options;
-    const fragment = document.createDocumentFragment();
-
-    if (!matchIndices || matchIndices.length === 0) {
-      fragment.appendChild(document.createTextNode(text));
-      return fragment;
-    }
-
-    // Filter out invalid indices (negative or out of range)
-    const validIndices = matchIndices.filter((i) => i >= 0 && i < text.length);
-
-    if (validIndices.length === 0) {
-      fragment.appendChild(document.createTextNode(text));
-      return fragment;
-    }
-
-    let lastIndex = 0;
-    let matchChars = "";
-
-    for (const index of validIndices) {
-      if (index > lastIndex) {
-        if (matchChars) {
-          const span = document.createElement("span");
-          span.className = className;
-          span.textContent = matchChars;
-          fragment.appendChild(span);
-          matchChars = "";
-        }
-        fragment.appendChild(
-          document.createTextNode(text.slice(lastIndex, index))
-        );
-      }
-      matchChars += text[index];
-      lastIndex = index + 1;
-    }
-
-    if (matchChars) {
-      const span = document.createElement("span");
-      span.className = className;
-      span.textContent = matchChars;
-      fragment.appendChild(span);
-    }
-
-    if (lastIndex < text.length) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
-
-    return fragment;
-  }
-
-  /**
-   * Creates a two-line list item element with primary and optional secondary lines.
-   * @param {Object} options - Configuration options
-   * @param {string|Node} options.primary - Primary line content (text or DOM node)
-   * @param {string|Node} [options.secondary] - Secondary line content (optional)
-   * @param {string[]} [options.icon] - Icon class names to add to primary line
-   * @returns {HTMLLIElement} The created list item element
-   */
-  static createTwoLineItem({ primary, secondary, icon }) {
-    const li = document.createElement("li");
-    li.classList.add("two-lines");
-
-    const priLine = document.createElement("div");
-    priLine.classList.add("primary-line");
-    if (icon && icon.length > 0) {
-      priLine.classList.add("icon", ...icon);
-    }
-    if (typeof primary === "string") {
-      priLine.textContent = primary;
-    } else if (primary) {
-      priLine.appendChild(primary);
-    }
-    li.appendChild(priLine);
-
-    if (secondary !== undefined && secondary !== null) {
-      const secLine = document.createElement("div");
-      secLine.classList.add("secondary-line");
-      if (typeof secondary === "string") {
-        secLine.textContent = secondary;
-      } else {
-        secLine.appendChild(secondary);
-      }
-      li.appendChild(secLine);
-    }
-
-    return li;
-  }
-
   constructor(props) {
     SelectListView.initializeScheduler();
     this.props = props;
@@ -129,8 +40,7 @@ class SelectListView {
     }
     this.computeItems(false);
     this.showHelp = false;
-    this.helpMarkdownHtml = null;
-    this.renderHelpMarkdownOnce();
+    this.computeHelp();
     this.disposables = new CompositeDisposable();
     etch.initialize(this);
     this.element.classList.add("select-list");
@@ -221,6 +131,10 @@ class SelectListView {
   show() {
     if (this.isVisible()) {
       return;
+    }
+
+    if (this.showHelp) {
+      this.toggleHelp();
     }
 
     if (this.props.willShow) {
@@ -318,6 +232,7 @@ class SelectListView {
 
   update(props = {}) {
     let shouldComputeItems = false;
+    let shouldComputeHelp = false;
 
     if ("items" in props) {
       this.props.items = props.items;
@@ -385,12 +300,12 @@ class SelectListView {
 
     if ("helpMessage" in props) {
       this.props.helpMessage = props.helpMessage;
+      shouldComputeHelp = true;
     }
 
     if ("helpMarkdown" in props) {
       this.props.helpMarkdown = props.helpMarkdown;
-      this.helpMarkdownHtml = null;
-      this.renderHelpMarkdownOnce();
+      shouldComputeHelp = true;
     }
 
     if ("loadingMessage" in props) {
@@ -418,42 +333,57 @@ class SelectListView {
       this.computeItems();
     }
 
+    if (shouldComputeHelp) {
+      this.computeHelp();
+    }
+
     return etch.update(this);
   }
 
   render() {
-    return $.div(
-      {},
-      this.renderQueryRow(),
-      this.renderLoadingMessage(),
-      this.renderInfoMessage(),
-      this.renderErrorMessage(),
-      this.renderHelpMessage(),
-      this.renderItems()
-    );
+    if (this.isHelpMode()) {
+      return $.div({}, this.renderQueryRow(), this.renderHelpMessage());
+    } else {
+      return $.div(
+        {},
+        this.renderQueryRow(),
+        this.renderLoadingMessage(),
+        this.renderInfoMessage(),
+        this.renderErrorMessage(),
+        this.renderItems()
+      );
+    }
   }
 
   renderQueryRow() {
-    if (this.props.helpMessage || this.props.helpMarkdown) {
-      return $.div(
-        { className: "select-list-query-row" },
-        $(TextEditor, { ref: "queryEditor", mini: true }),
-        $.span({
-          className: "select-list-help-toggle icon-question",
+    const helpToggle = this.helpMessage
+      ? $.span({
+          className: "icon-question",
+          style: {
+            position: "absolute",
+            right: "8px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            cursor: "pointer",
+            opacity: "0.5",
+            zIndex: "1",
+          },
           on: {
             mousedown: (e) => e.preventDefault(),
             click: () => this.toggleHelp(),
+            mouseenter: (e) => (e.target.style.opacity = "1"),
+            mouseleave: (e) => (e.target.style.opacity = "0.5"),
           },
         })
-      );
-    }
-    return $(TextEditor, { ref: "queryEditor", mini: true });
+      : "";
+    return $.div(
+      { style: { position: "relative" } },
+      $(TextEditor, { ref: "queryEditor", mini: true }),
+      helpToggle
+    );
   }
 
   renderItems() {
-    if (this.isHelpMode()) {
-      return "";
-    }
     if (this.items.length > 0) {
       const className = ["list-group"]
         .concat(this.props.itemsClassList || [])
@@ -470,11 +400,7 @@ class SelectListView {
       });
 
       return $.ol({ className, ref: "items" }, ...this.listItems);
-    } else if (
-      !this.props.loadingMessage &&
-      !this.isHelpMode() &&
-      this.props.emptyMessage
-    ) {
+    } else if (!this.props.loadingMessage && this.props.emptyMessage) {
       return $.div(
         { ref: "emptyMessage", className: "empty-message" },
         this.props.emptyMessage
@@ -509,12 +435,14 @@ class SelectListView {
   renderLoadingMessage() {
     if (this.props.loadingMessage) {
       return $.div(
-        { className: "loading" },
+        { className: "loading", style: 'display: flex; align-items: center;' },
         $.div(
           { ref: "loadingMessage", className: "loading-message" },
           this.props.loadingMessage
         ),
-        $.span({ className: "loading-spinner-tiny inline-block" }),
+        this.props.loadingSpinner
+          ? $.span({ className: "loading-spinner-tiny inline-block" })
+          : "",
         this.props.loadingBadge
           ? $.span(
               { ref: "loadingBadge", className: "badge" },
@@ -528,57 +456,45 @@ class SelectListView {
   }
 
   renderHelpMessage() {
-    if (!this.showHelp) {
+    if (!this.showHelp || !this.helpMessage) {
       return "";
     }
-    if (this.props.helpMarkdown) {
-      return $.div({ ref: "helpMarkdownContainer", className: "help-message" });
-    }
-    if (this.props.helpMessage) {
-      return $.div(
-        { ref: "helpMessage", className: "help-message" },
-        this.props.helpMessage
-      );
-    }
-    return "";
+    const isMarkdown = !this.props.helpMessage && this.props.helpMarkdown;
+    return $.div({
+      ref: "helpMessage",
+      className: "help-message" + (isMarkdown ? " markdown" : ""),
+      innerHTML: this.helpMessage,
+    });
   }
 
-  renderHelpMarkdownOnce() {
-    if (this.props.helpMarkdown && !this.helpMarkdownHtml) {
+  computeHelp() {
+    if (this.props.helpMessage) {
+      this.helpMessage = this.props.helpMessage;
+    } else if (this.props.helpMarkdown) {
       if (atom.ui && atom.ui.markdown && atom.ui.markdown.render) {
-        this.helpMarkdownHtml = atom.ui.markdown.render(
-          this.props.helpMarkdown
-        );
+        this.helpMessage = atom.ui.markdown.render(this.props.helpMarkdown);
       } else {
         // Fallback: escape and wrap as text
         const escaped = this.props.helpMarkdown
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
-        this.helpMarkdownHtml = `<p>${escaped}</p>`;
+        this.helpMessage = `<p>${escaped}</p>`;
       }
-    }
-  }
-
-  updateHelpMarkdown() {
-    const container = this.element.querySelector(".help-message");
-    if (container && this.helpMarkdownHtml) {
-      container.innerHTML = this.helpMarkdownHtml;
+    } else {
+      this.helpMessage = false;
     }
   }
 
   isHelpMode() {
-    return (this.props.helpMessage || this.props.helpMarkdown) && this.showHelp;
+    return this.helpMessage && this.showHelp;
   }
 
   toggleHelp() {
-    if (!this.props.helpMessage && !this.props.helpMarkdown) return;
+    if (!this.helpMessage) {
+      return;
+    }
     this.showHelp = !this.showHelp;
-    return etch.update(this).then(() => {
-      // Use requestAnimationFrame to ensure DOM is fully rendered
-      requestAnimationFrame(() => {
-        this.updateHelpMarkdown();
-      });
-    });
+    return etch.update(this);
   }
 
   hideHelp() {
@@ -648,9 +564,9 @@ class SelectListView {
       return items;
     }
 
-    const replaceDiacritics = this.props.replaceDiacritics ?? true;
-    if (replaceDiacritics) {
-      query = SelectListView.replaceDiacritics(query);
+    const diacritics = this.props.replaceDiacritics ?? true;
+    if (diacritics) {
+      query = replaceDiacritics(query);
     }
 
     const modifyScore = this.props.filterScoreModifier;
@@ -660,8 +576,8 @@ class SelectListView {
       let string = this.props.filterKeyForItem
         ? this.props.filterKeyForItem(item)
         : item;
-      if (replaceDiacritics) {
-        string = SelectListView.replaceDiacritics(string);
+      if (diacritics) {
+        string = replaceDiacritics(string);
       }
       const result = atom.ui.fuzzyMatcher.match(string, query, {
         recordMatchIndexes: true,
@@ -873,4 +789,98 @@ class ListItemView {
   }
 }
 
+
+function highlightMatches(text, matchIndices, options = {}) {
+  const { className = "character-match" } = options;
+  const fragment = document.createDocumentFragment();
+
+  if (!matchIndices || matchIndices.length === 0) {
+    fragment.appendChild(document.createTextNode(text));
+    return fragment;
+  }
+
+  // Filter out invalid indices (negative or out of range)
+  const validIndices = matchIndices.filter((i) => i >= 0 && i < text.length);
+
+  if (validIndices.length === 0) {
+    fragment.appendChild(document.createTextNode(text));
+    return fragment;
+  }
+
+  let lastIndex = 0;
+  let matchChars = "";
+
+  for (const index of validIndices) {
+    if (index > lastIndex) {
+      if (matchChars) {
+        const span = document.createElement("span");
+        span.className = className;
+        span.textContent = matchChars;
+        fragment.appendChild(span);
+        matchChars = "";
+      }
+      fragment.appendChild(
+        document.createTextNode(text.slice(lastIndex, index))
+      );
+    }
+    matchChars += text[index];
+    lastIndex = index + 1;
+  }
+
+  if (matchChars) {
+    const span = document.createElement("span");
+    span.className = className;
+    span.textContent = matchChars;
+    fragment.appendChild(span);
+  }
+
+  if (lastIndex < text.length) {
+    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+
+  return fragment;
+}
+
+/**
+ * Creates a two-line list item element with primary and optional secondary lines.
+ * @param {Object} options - Configuration options
+ * @param {string|Node} options.primary - Primary line content (text or DOM node)
+ * @param {string|Node} [options.secondary] - Secondary line content (optional)
+ * @param {string[]} [options.icon] - Icon class names to add to primary line
+ * @returns {HTMLLIElement} The created list item element
+ */
+function createTwoLineItem({ primary, secondary, icon }) {
+  const li = document.createElement("li");
+  li.classList.add("two-lines");
+
+  const priLine = document.createElement("div");
+  priLine.classList.add("primary-line");
+  if (icon && icon.length > 0) {
+    priLine.classList.add("icon", ...icon);
+  }
+  if (typeof primary === "string") {
+    priLine.textContent = primary;
+  } else if (primary) {
+    priLine.appendChild(primary);
+  }
+  li.appendChild(priLine);
+
+  if (secondary !== undefined && secondary !== null) {
+    const secLine = document.createElement("div");
+    secLine.classList.add("secondary-line");
+    if (typeof secondary === "string") {
+      secLine.textContent = secondary;
+    } else {
+      secLine.appendChild(secondary);
+    }
+    li.appendChild(secLine);
+  }
+
+  return li;
+}
+
 module.exports = SelectListView;
+module.exports.SelectListView = SelectListView;
+module.exports.replaceDiacritics = replaceDiacritics;
+module.exports.highlightMatches = highlightMatches;
+module.exports.createTwoLineItem = createTwoLineItem;

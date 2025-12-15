@@ -75,6 +75,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 - `helpMessage: String|Array`: content to display when help is toggled. Can be a string or JSX array for rich formatting.
 - `helpMarkdown: String`: markdown content to display when help is toggled. Rendered using Pulsar's built-in markdown renderer.
 - `loadingMessage: String`: a string that needs to be set when you are loading items in the background.
+- `loadingSpinner: Boolean`: show spinner next to loading message.
 - `loadingBadge: String/Number`: a string or number that needs to be set when the progress status changes.
 - `itemsClassList: [String]`: an array of strings that will be added as class names to the items element.
 - `initialSelectionIndex: Number`: the index of the item to initially select; defaults to `0`.
