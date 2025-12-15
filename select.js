@@ -139,7 +139,7 @@ class SelectListView {
 
     const active = document.activeElement;
     if (active && !active.closest(".modal")) {
-      document.previousFocusElement = active;
+      document.priorFocus = active;
     }
 
     this.refs.queryEditor.selectAll();
@@ -165,9 +165,9 @@ class SelectListView {
       this.panel.hide();
     }
 
-    if (document.previousFocusElement) {
-      document.previousFocusElement.focus();
-      delete document.previousFocusElement
+    if (document.priorFocus) {
+      document.priorFocus.focus();
+      delete document.priorFocus
     }
   }
 
