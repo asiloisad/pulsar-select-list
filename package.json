@@ -19,6 +19,7 @@
     "README.md"
   ],
   "dependencies": {
+    "diacritic": "^0.0.2",
     "etch": "^0.14.0"
   },
   "repository": {

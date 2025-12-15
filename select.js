@@ -2,12 +2,8 @@
 
 const { Disposable, CompositeDisposable, TextEditor } = require("atom");
 const etch = require("etch");
+const Diacritics = require("diacritic");
 const $ = etch.dom;
-
-function replaceDiacritics(str) {
-  if (!str) return "";
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
 
 class SelectListView {
   static schedulerInitialized = false;
@@ -254,8 +250,8 @@ class SelectListView {
       shouldComputeItems = true;
     }
 
-    if ("replaceDiacritics" in props) {
-      this.props.replaceDiacritics = props.replaceDiacritics;
+    if ("removeDiacritics" in props) {
+      this.props.removeDiacritics = props.removeDiacritics;
       shouldComputeItems = true;
     }
 
@@ -564,9 +560,8 @@ class SelectListView {
       return items;
     }
 
-    const diacritics = this.props.replaceDiacritics ?? true;
-    if (diacritics) {
-      query = replaceDiacritics(query);
+    if (this.props.removeDiacritics) {
+      query = Diacritics.clean(query);
     }
 
     const modifyScore = this.props.filterScoreModifier;
@@ -576,8 +571,8 @@ class SelectListView {
       let string = this.props.filterKeyForItem
         ? this.props.filterKeyForItem(item)
         : item;
-      if (diacritics) {
-        string = replaceDiacritics(string);
+      if (this.props.removeDiacritics) {
+        string = Diacritics.clean(string);
       }
       const result = atom.ui.fuzzyMatcher.match(string, query, {
         recordMatchIndexes: true,
@@ -789,7 +784,6 @@ class ListItemView {
   }
 }
 
-
 function highlightMatches(text, matchIndices, options = {}) {
   const { className = "character-match" } = options;
   const fragment = document.createDocumentFragment();
@@ -881,6 +875,6 @@ function createTwoLineItem({ primary, secondary, icon }) {
 
 module.exports = SelectListView;
 module.exports.SelectListView = SelectListView;
-module.exports.replaceDiacritics = replaceDiacritics;
+module.exports.removeDiacritics = Diacritics.clean;
 module.exports.highlightMatches = highlightMatches;
 module.exports.createTwoLineItem = createTwoLineItem;

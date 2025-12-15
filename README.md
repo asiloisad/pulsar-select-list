@@ -64,7 +64,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 - `filter: (items: [Object], query: String) -> [Object]`: a function that allows to decide which items to show whenever the query changes. By default, it uses Pulsar's built-in fuzzy matcher.
 - `filterKeyForItem: (item: Object) -> String`: when `filter` is not provided, this function will be called to retrieve a string property on each item and that will be used to filter them.
 - `filterQuery: (query: String) -> String`: a function that allows to apply a transformation to the user query and whose return value will be used to filter items.
-- `replaceDiacritics: Boolean`: when `true` (default), removes diacritical marks from both the query and item text before filtering, enabling accent-insensitive matching (e.g., "cafe" matches "café"). Set to `false` to disable.
+- `removeDiacritics: Boolean`: when `true`, removes diacritical marks from both the query and item text before filtering, enabling accent-insensitive matching (e.g., "cafe" matches "café").
 - `filterScoreModifier: (score: Number, item: Object) -> Number`: a function to modify the fuzzy match score for each item. Useful for applying custom ranking factors (e.g., boosting by recency or proximity).
 - `query: String`: a string that will replace the contents of the query editor.
 - `selectQuery: Boolean`: a boolean indicating whether the query text should be selected or not.
@@ -165,14 +165,14 @@ const fragment = SelectListView.highlightMatches(item.name, matches, {
 
 Returns a `DocumentFragment` containing text nodes and `<span>` elements with the specified class.
 
-#### `SelectListView.replaceDiacritics(str)`
+#### `SelectListView.removeDiacritics(str)`
 
 Removes diacritical marks (accents) from a string.
 
 ```js
-SelectListView.replaceDiacritics("café"); // => 'cafe'
-SelectListView.replaceDiacritics("naïve"); // => 'naive'
-SelectListView.replaceDiacritics("Müller"); // => 'Muller'
+SelectListView.removeDiacritics("café"); // => 'cafe'
+SelectListView.removeDiacritics("naïve"); // => 'naive'
+SelectListView.removeDiacritics("Müller"); // => 'Muller'
 ```
 
 - `str: String`: the string to process.
@@ -368,7 +368,7 @@ Replace external diacritics library with built-in static method:
 -const Diacritics = require('diacritic')
 
 -Diacritics.clean(text)
-+SelectListView.replaceDiacritics(text)
++SelectListView.removeDiacritics(text)
 ```
 
 ### Match Highlighting
