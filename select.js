@@ -112,6 +112,11 @@ class SelectListView {
    */
   destroy() {
     this.disposables.dispose();
+    this.filterMatcher = null;
+    this.indexMatcher = null;
+    this.cachedItems = null;
+    this.cachedCandidates = null;
+    this.cachedItemByIndex = null;
     if (this.panel) {
       this.panel.destroy();
       this.panel = null;
@@ -233,6 +238,7 @@ class SelectListView {
 
     if ("items" in props) {
       this.props.items = props.items;
+      this.clearMatcherCache();
       shouldComputeItems = true;
     }
 
@@ -253,16 +259,33 @@ class SelectListView {
 
     if ("removeDiacritics" in props) {
       this.props.removeDiacritics = props.removeDiacritics;
+      this.clearMatcherCache();
       shouldComputeItems = true;
     }
 
     if ("filterKeyForItem" in props) {
+      this.clearMatcherCache();
       this.props.filterKeyForItem = props.filterKeyForItem;
       shouldComputeItems = true;
     }
 
     if ("filterScoreModifier" in props) {
       this.props.filterScoreModifier = props.filterScoreModifier;
+      shouldComputeItems = true;
+    }
+
+    if ("algorithm" in props) {
+      this.props.algorithm = props.algorithm;
+      shouldComputeItems = true;
+    }
+
+    if ("numThreads" in props) {
+      this.props.numThreads = props.numThreads;
+      shouldComputeItems = true;
+    }
+
+    if ("maxGap" in props) {
+      this.props.maxGap = props.maxGap;
       shouldComputeItems = true;
     }
 
@@ -388,8 +411,15 @@ class SelectListView {
 
       this.listItems = this.items.map((item, index) => {
         const selected = this.getSelectedItem() === item;
+        const filterKey = this.getFilterKey(item);
+        const opts = { selected, index, filterKey };
+        // Lazy getter - matchIndices only computed when accessed
+        Object.defineProperty(opts, "matchIndices", {
+          get: () => this.getMatchIndices(item, filterKey),
+          enumerable: true,
+        });
         return $(ListItemView, {
-          element: this.props.elementForItem(item, { selected, index }),
+          element: this.props.elementForItem(item, opts),
           selected: selected,
           onclick: () => this.didClickItem(index),
           oncontextmenu: () => this.selectIndex(index),
@@ -543,6 +573,7 @@ class SelectListView {
   computeItems(updateComponent) {
     this.listItems = null;
     this.matchIndicesMap = new Map();
+    this.filterKeyMap = new Map();
     const filterFn = this.props.filter || this.fuzzyFilter.bind(this);
     this.processedQuery = this.getFilterQuery();
     this.items = filterFn(this.props.items.slice(), this.processedQuery);
@@ -556,8 +587,19 @@ class SelectListView {
     this.selectIndex(this.props.initialSelectionIndex, updateComponent);
   }
 
+  /**
+   * Clears the cached matcher and related data.
+   */
+  clearMatcherCache() {
+    this.cachedItems = null;
+    this.cachedCandidates = null;
+    this.cachedItemByIndex = null;
+    // Note: we keep filterMatcher and indexMatcher alive for reuse
+  }
+
   fuzzyFilter(items, query) {
     if (query.length === 0) {
+      this.clearMatcherCache();
       return items;
     }
 
@@ -565,38 +607,150 @@ class SelectListView {
       query = Diacritics.clean(query);
     }
 
+    // Check if we need to rebuild candidates (items changed)
+    const needsRebuild = this.cachedItems !== this.props.items;
+
+    let candidates;
+    let itemByIndex;
+
+    if (needsRebuild) {
+      // Build candidates array with index mapping
+      candidates = [];
+      itemByIndex = [];
+
+      for (const item of items) {
+        let filterKey = this.props.filterKeyForItem
+          ? this.props.filterKeyForItem(item)
+          : item;
+        if (this.props.removeDiacritics) {
+          filterKey = Diacritics.clean(filterKey);
+        }
+        candidates.push(filterKey);
+        itemByIndex.push(item);
+      }
+
+      // Create or update the filter matcher
+      if (this.filterMatcher) {
+        // Update existing matcher - preserves lastQuery_ optimization
+        atom.ui.fuzzyMatcher.setCandidates(this.filterMatcher, candidates);
+      } else {
+        this.filterMatcher = atom.ui.fuzzyMatcher.setCandidates(candidates);
+      }
+
+      // Cache for reuse
+      this.cachedItems = this.props.items;
+      this.cachedCandidates = candidates;
+      this.cachedItemByIndex = itemByIndex;
+    } else {
+      // Reuse cached data - matcher benefits from lastQuery_ optimization
+      candidates = this.cachedCandidates;
+      itemByIndex = this.cachedItemByIndex;
+    }
+
+    // Use Matcher - benefits from query extension optimization when reused
+    const matchOptions = {
+      recordMatchIndexes: false, // Lazy - compute when displayed
+    };
+    if (this.props.algorithm) matchOptions.algorithm = this.props.algorithm;
+    if (this.props.numThreads) matchOptions.numThreads = this.props.numThreads;
+    if (this.props.maxGap !== undefined) matchOptions.maxGap = this.props.maxGap;
+
+    const results = this.filterMatcher.match(query, matchOptions);
+
+    // Apply score modifier if provided and map back to items
     const modifyScore = this.props.filterScoreModifier;
     const scoredItems = [];
 
-    for (const item of items) {
-      let string = this.props.filterKeyForItem
-        ? this.props.filterKeyForItem(item)
-        : item;
-      if (this.props.removeDiacritics) {
-        string = Diacritics.clean(string);
-      }
-      const result = atom.ui.fuzzyMatcher.match(string, query, {
-        recordMatchIndexes: true,
-      });
-      if (!result) continue;
+    for (const result of results) {
+      const item = itemByIndex[result.id];
       let score = result.score;
+
       if (modifyScore) {
         score = modifyScore(score, item);
       }
+
       if (score > 0) {
-        scoredItems.push({ item, score, matchIndexes: result.matchIndexes });
+        scoredItems.push({ item, score, filterKey: candidates[result.id] });
       }
     }
 
-    scoredItems.sort((a, b) => b.score - a.score);
-    for (const { item, matchIndexes } of scoredItems) {
-      this.matchIndicesMap.set(item, matchIndexes);
+    // Re-sort if score modifier changed ordering
+    if (modifyScore) {
+      scoredItems.sort((a, b) => b.score - a.score);
     }
+
+    // Store filterKeys for lazy index calculation
+    for (const { item, filterKey } of scoredItems) {
+      this.filterKeyMap.set(item, filterKey);
+    }
+
     return scoredItems.map((i) => i.item);
   }
 
-  getMatchIndices(item) {
-    return this.matchIndicesMap ? this.matchIndicesMap.get(item) : null;
+  /**
+   * Returns the filter key for an item.
+   * @param {*} item - The item to get the filter key for
+   * @returns {string|null} The filter key string, or null
+   */
+  getFilterKey(item) {
+    // Check stored filterKey from fuzzyFilter
+    let filterKey = this.filterKeyMap?.get(item);
+    if (filterKey) return filterKey;
+
+    // Compute from filterKeyForItem
+    if (this.props.filterKeyForItem) {
+      filterKey = this.props.filterKeyForItem(item);
+      if (this.props.removeDiacritics) {
+        filterKey = Diacritics.clean(filterKey);
+      }
+      return filterKey;
+    }
+
+    // Fall back to item itself if string
+    return typeof item === "string" ? item : null;
+  }
+
+  /**
+   * Returns the match indices for an item, computing lazily if needed.
+   * Match indices indicate which characters in the filter key matched the query.
+   * @param {*} item - The item to get match indices for
+   * @param {string} [filterKey] - Optional filter key override. If not provided,
+   *   uses the stored filterKey from fuzzyFilter or computes from filterKeyForItem.
+   * @returns {number[]|null} Array of character indices that matched, or null
+   */
+  getMatchIndices(item, filterKey) {
+    // Check cache first
+    const cached = this.matchIndicesMap?.get(item);
+    if (cached !== undefined) return cached;
+
+    // Use provided filterKey or get from item
+    if (!filterKey) {
+      filterKey = this.getFilterKey(item);
+    }
+
+    if (!filterKey || !this.processedQuery) {
+      return null;
+    }
+
+    // Use reusable matcher for index computation (like fuzzy-finder)
+    if (!this.indexMatcher) {
+      this.indexMatcher = atom.ui.fuzzyMatcher.setCandidates([filterKey]);
+    } else {
+      atom.ui.fuzzyMatcher.setCandidates(this.indexMatcher, [filterKey]);
+    }
+
+    const indexMatchOptions = {
+      maxResults: 1,
+      recordMatchIndexes: true,
+    };
+    if (this.props.algorithm) indexMatchOptions.algorithm = this.props.algorithm;
+    if (this.props.maxGap !== undefined) indexMatchOptions.maxGap = this.props.maxGap;
+
+    const results = this.indexMatcher.match(this.processedQuery, indexMatchOptions);
+
+    const indexes = results.length > 0 ? results[0].matchIndexes : null;
+    this.matchIndicesMap?.set(item, indexes);
+    return indexes;
   }
 
   getSelectedItem() {
@@ -608,9 +762,16 @@ class SelectListView {
     if (!this.listItems || index < 0 || index >= this.listItems.length) return;
     const item = this.items[index];
     const selected = this.getSelectedItem() === item;
+    const filterKey = this.getFilterKey(item);
+    const opts = { selected, index, filterKey };
+    // Lazy getter - matchIndices only computed when accessed
+    Object.defineProperty(opts, "matchIndices", {
+      get: () => this.getMatchIndices(item, filterKey),
+      enumerable: true,
+    });
     const component = this.listItems[index].component;
     component.update({
-      element: this.props.elementForItem(item, { selected, index }),
+      element: this.props.elementForItem(item, opts),
       selected: selected,
       onclick: () => this.didClickItem(index),
       oncontextmenu: () => this.selectIndex(index),
@@ -785,6 +946,32 @@ class ListItemView {
   }
 }
 
+/**
+ * Computes fuzzy match indices for a text against a query.
+ * @param {string} text - The text to match against
+ * @param {string} query - The query to match
+ * @param {Object} [options] - Optional settings
+ * @param {boolean} [options.removeDiacritics=false] - Whether to remove diacritics before matching
+ * @returns {number[]|null} Array of character indices that matched, or null if no match
+ */
+function getMatchIndices(text, query, options = {}) {
+  if (!text || !query) return null;
+
+  let processedText = text;
+  let processedQuery = query;
+
+  if (options.removeDiacritics) {
+    processedText = Diacritics.clean(processedText);
+    processedQuery = Diacritics.clean(processedQuery);
+  }
+
+  const result = atom.ui.fuzzyMatcher.match(processedText, processedQuery, {
+    recordMatchIndexes: true,
+  });
+
+  return result?.matchIndexes ?? null;
+}
+
 function highlightMatches(text, matchIndices, options = {}) {
   const { className = "character-match" } = options;
   const fragment = document.createDocumentFragment();
@@ -877,5 +1064,6 @@ function createTwoLineItem({ primary, secondary, icon }) {
 module.exports = SelectListView;
 module.exports.SelectListView = SelectListView;
 module.exports.removeDiacritics = Diacritics.clean;
+module.exports.getMatchIndices = getMatchIndices;
 module.exports.highlightMatches = highlightMatches;
 module.exports.createTwoLineItem = createTwoLineItem;

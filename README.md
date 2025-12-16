@@ -48,6 +48,8 @@ When creating a new instance of a select list, or when calling `update` on an ex
   - `options: Object`:
     - `selected: Boolean`: indicating whether item is selected or not.
     - `index: Number`: item's index.
+    - `filterKey: String|null`: the text that was matched against (from `filterKeyForItem` or item itself).
+    - `matchIndices: [Number]|null`: lazy getter - character indices in `filterKey` that matched the query. Only computed when accessed.
 
 #### Optional
 
@@ -58,6 +60,9 @@ When creating a new instance of a select list, or when calling `update` on an ex
 - `filterQuery: (query: String) -> String`: a function that allows to apply a transformation to the user query and whose return value will be used to filter items.
 - `removeDiacritics: Boolean`: when `true`, removes diacritical marks from both the query and item text before filtering, enabling accent-insensitive matching (e.g., "cafe" matches "café").
 - `filterScoreModifier: (score: Number, item: Object) -> Number`: a function to modify the fuzzy match score for each item. Useful for applying custom ranking factors (e.g., boosting by recency or proximity).
+- `algorithm: String`: the fuzzy matching algorithm to use. Options: `'fuzzaldrin'` (default), `'command-t'` (path-aware, better for file paths).
+- `numThreads: Number`: number of threads for parallel matching. Defaults to 80% of available CPUs.
+- `maxGap: Number`: maximum gap between consecutive matched characters (only for `'command-t'` algorithm). Lower values require tighter matches. Defaults to infinite.
 - `query: String`: a string that will replace the contents of the query editor.
 - `selectQuery: Boolean`: a boolean indicating whether the query text should be selected or not.
 - `order: (item1: Object, item2: Object) -> Number`: a function that allows to change the order in which items are shown.
@@ -118,7 +123,8 @@ By default, the component registers these commands on its element:
 - `destroy()`: Disposes of the component and cleans up resources.
 - `update(props)`: Updates the component with new props.
 - `getQuery()`: Returns the current query string.
-- `getMatchIndices(item)`: Returns the cached match indices for an item from the last filter operation, or `null` if no matches. Use this in `elementForItem` instead of calling `atom.ui.fuzzyMatcher.match()` directly.
+- `getFilterKey(item)`: Returns the filter key string for an item (from cache, `filterKeyForItem`, or item itself).
+- `getMatchIndices(item, filterKey?)`: Returns match indices for an item, computing lazily if needed. Prefer using `options.matchIndices` in `elementForItem` instead.
 - `getFilterQuery()`: Returns the filtered query string (applies `filterQuery` transformation).
 - `setQueryFromSelection()`: Sets the query text from the active editor's selection. Returns `true` if successful, `false` if no editor, no selection, or selection contains newlines.
 - `getSelectedItem()`: Returns the currently selected item.
@@ -134,18 +140,42 @@ By default, the component registers these commands on its element:
 
 ### Static Methods
 
+#### `SelectListView.getMatchIndices(text, query, options)`
+
+Computes fuzzy match indices for a text against a query. Useful outside of `elementForItem` context.
+
+```js
+const { getMatchIndices } = require("pulsar-select-list");
+
+const indices = getMatchIndices("MyComponent.js", "mcjs");
+// => [0, 2, 11, 12] or null if no match
+
+// With diacritics removal
+const indices = getMatchIndices("café", "cafe", { removeDiacritics: true });
+// => [0, 1, 2, 3]
+```
+
+- `text: String`: the text to match against.
+- `query: String`: the query to match.
+- `options: Object` (optional):
+  - `removeDiacritics: Boolean`: remove diacritical marks before matching.
+
+Returns an array of character indices that matched, or `null` if no match.
+
 #### `SelectListView.highlightMatches(text, matchIndices, options)`
 
 Creates a DocumentFragment with highlighted match characters.
 
 ```js
-// In elementForItem, use getMatchIndices() to get cached match indices:
-const matches = this.selectList.getMatchIndices(item) || [];
-const fragment = SelectListView.highlightMatches(item.name, matches);
-element.appendChild(fragment);
+// In elementForItem, use options.matchIndices (lazy getter):
+elementForItem: (item, { filterKey, matchIndices }) => {
+  const li = document.createElement("li");
+  li.appendChild(SelectListView.highlightMatches(filterKey, matchIndices));
+  return li;
+}
 
 // With custom class name
-const fragment = SelectListView.highlightMatches(item.name, matches, {
+const fragment = SelectListView.highlightMatches(text, matchIndices, {
   className: "my-highlight",
 });
 ```
@@ -176,11 +206,14 @@ Returns the string with diacritical marks removed. Uses `String.normalize('NFD')
 Creates a two-line list item element with primary and optional secondary lines. This is a convenience helper for the common Atom/Pulsar two-line item pattern.
 
 ```js
-const li = SelectListView.createTwoLineItem({
-  primary: SelectListView.highlightMatches(item.name, matches),
-  secondary: item.description,
-  icon: ["icon-file-text"],
-});
+// In elementForItem:
+elementForItem: (item, { filterKey, matchIndices }) => {
+  return SelectListView.createTwoLineItem({
+    primary: SelectListView.highlightMatches(filterKey, matchIndices),
+    secondary: item.description,
+    icon: ["icon-file-text"],
+  });
+}
 ```
 
 - `options: Object`:
@@ -223,12 +256,13 @@ class MyFileList {
       willShow: () => {
         this.loadFiles();
       },
-      elementForItem: (item, options) => {
+      elementForItem: (item, { index, filterKey, matchIndices }) => {
         const li = document.createElement("li");
-        const matches = this.selectList.getMatchIndices(item) || [];
-        li.appendChild(SelectListView.highlightMatches(item.name, matches));
+        // filterKey is what was matched, matchIndices are positions in filterKey
+        // matchIndices is a lazy getter - only computed when accessed
+        li.appendChild(SelectListView.highlightMatches(filterKey, matchIndices));
         li.addEventListener("contextmenu", () => {
-          this.selectList.selectIndex(options.index);
+          this.selectList.selectIndex(index);
         });
         return li;
       },
@@ -359,15 +393,17 @@ Replace external diacritics library with built-in static method:
 
 ### Match Highlighting
 
-Use `getMatchIndices(item)` to get cached match indices from the filter:
+Use `filterKey` and `matchIndices` from the options parameter (lazy getter - only computed when accessed):
 
 ```diff
-elementForItem(item, options) {
+-elementForItem(item, options) {
 -  const query = this.query || ''
 -  const matches = query
 -    ? atom.ui.fuzzyMatcher.match(item.name, query, { recordMatchIndexes: true }).matchIndexes
 -    : []
-+  const matches = this.selectList.getMatchIndices(item) || []
-   el.appendChild(SelectListView.highlightMatches(item.name, matches))
+-  el.appendChild(SelectListView.highlightMatches(item.name, matches))
++elementForItem(item, { filterKey, matchIndices }) {
++  // matchIndices references positions in filterKey
++  el.appendChild(SelectListView.highlightMatches(filterKey, matchIndices))
 }
 ```
