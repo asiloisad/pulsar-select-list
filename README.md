@@ -1,6 +1,15 @@
 # pulsar-select-list
 
-This module is an [etch component](https://github.com/atom/etch) that can be used in Pulsar packages to show a select list with fuzzy filtering, keyboard/mouse navigation and other cool features.
+Fuzzy-searchable select list component. An [etch component](https://github.com/atom/etch) with keyboard/mouse navigation and built-in panel management.
+
+## Features
+
+- **Fuzzy filtering**: Multiple algorithms including `command-t` for file paths.
+- **Match highlighting**: Built-in helpers for displaying match positions.
+- **Panel management**: Show/hide/toggle with focus restoration.
+- **Lazy match indices**: Match positions computed only when accessed.
+- **Diacritics support**: Accent-insensitive matching option.
+- **Help mode**: Toggle help content in the panel.
 
 ## Usage
 
@@ -37,7 +46,7 @@ render () {
 
 ## API
 
-### Constructor Props
+### Constructor props
 
 When creating a new instance of a select list, or when calling `update` on an existing one, you can supply a JavaScript object that can contain any of the following properties:
 
@@ -79,7 +88,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 - `placeholderText: String`: placeholder text to display in the query editor when empty.
 - `skipCommandsRegistration: Boolean`: when `true`, skips registering default keyboard commands.
 
-### Registered Commands
+### Registered commands
 
 By default, the component registers these commands on its element:
 
@@ -98,15 +107,15 @@ By default, the component registers these commands on its element:
 - `didCancelSelection: () -> Void`: called when the user presses Esc or the list loses focus.
 - `willShow: () -> Void`: called when transitioning from hidden to visible, useful for data preparation.
 
-### Instance Properties
+### Instance properties
 
 - `processedQuery: String`: The cached result of `getFilterQuery()`, updated after each query change. Useful in `elementForItem` to avoid calling `getFilterQuery()` multiple times.
 - `selectionIndex: Number|undefined`: The index of the currently selected item, or `undefined` if nothing is selected.
 - `refs.queryEditor`: The underlying TextEditor component for the query input.
 
-### Instance Methods
+### Instance methods
 
-#### Panel Management
+#### Panel management
 
 - `show()`: Shows the select list as a modal panel and focuses the query editor. Calls `willShow` callback if provided.
 - `hide()`: Hides the panel and restores focus to the previously focused element.
@@ -116,7 +125,7 @@ By default, the component registers these commands on its element:
 - `toggleHelp()`: Toggles help message visibility. Only works if `helpMessage` is set.
 - `hideHelp()`: Hides help message if currently shown.
 
-#### Other Methods
+#### Other methods
 
 - `focus()`: Focuses the query editor.
 - `reset()`: Clears the query editor text.
@@ -138,7 +147,7 @@ By default, the component registers these commands on its element:
 - `confirmSelection()`: Confirms the current selection.
 - `cancelSelection()`: Cancels the selection.
 
-### Static Methods
+### Static methods
 
 #### `SelectListView.getMatchIndices(text, query, options)`
 
@@ -155,13 +164,6 @@ const indices = getMatchIndices("café", "cafe", { removeDiacritics: true });
 // => [0, 1, 2, 3]
 ```
 
-- `text: String`: the text to match against.
-- `query: String`: the query to match.
-- `options: Object` (optional):
-  - `removeDiacritics: Boolean`: remove diacritical marks before matching.
-
-Returns an array of character indices that matched, or `null` if no match.
-
 #### `SelectListView.highlightMatches(text, matchIndices, options)`
 
 Creates a DocumentFragment with highlighted match characters.
@@ -173,19 +175,7 @@ elementForItem: (item, { filterKey, matchIndices }) => {
   li.appendChild(SelectListView.highlightMatches(filterKey, matchIndices));
   return li;
 }
-
-// With custom class name
-const fragment = SelectListView.highlightMatches(text, matchIndices, {
-  className: "my-highlight",
-});
 ```
-
-- `text: String`: the text to highlight.
-- `matchIndices: [Number]`: array of character indices to highlight.
-- `options: Object` (optional):
-  - `className: String`: CSS class for highlighted spans; defaults to `'character-match'`.
-
-Returns a `DocumentFragment` containing text nodes and `<span>` elements with the specified class.
 
 #### `SelectListView.removeDiacritics(str)`
 
@@ -193,20 +183,13 @@ Removes diacritical marks (accents) from a string.
 
 ```js
 SelectListView.removeDiacritics("café"); // => 'cafe'
-SelectListView.removeDiacritics("naïve"); // => 'naive'
-SelectListView.removeDiacritics("Müller"); // => 'Muller'
 ```
-
-- `str: String`: the string to process.
-
-Returns the string with diacritical marks removed. Uses `String.normalize('NFD')` internally.
 
 #### `SelectListView.createTwoLineItem(options)`
 
-Creates a two-line list item element with primary and optional secondary lines. This is a convenience helper for the common Atom/Pulsar two-line item pattern.
+Creates a two-line list item element with primary and optional secondary lines.
 
 ```js
-// In elementForItem:
 elementForItem: (item, { filterKey, matchIndices }) => {
   return SelectListView.createTwoLineItem({
     primary: SelectListView.highlightMatches(filterKey, matchIndices),
@@ -215,28 +198,6 @@ elementForItem: (item, { filterKey, matchIndices }) => {
   });
 }
 ```
-
-- `options: Object`:
-  - `primary: String|Node`: Primary line content (text string or DOM node)
-  - `secondary: String|Node` (optional): Secondary line content
-  - `icon: [String]` (optional): Icon class names to add to primary line (adds `icon` class automatically)
-
-Returns an `HTMLLIElement` with the structure:
-
-```html
-<li class="two-lines">
-  <div class="primary-line icon [icon]">[primary]</div>
-  <div class="secondary-line">[secondary]</div>
-</li>
-```
-
-#### `SelectListView.setScheduler(scheduler)`
-
-Sets the etch scheduler.
-
-#### `SelectListView.getScheduler()`
-
-Gets the current etch scheduler.
 
 ## Example
 
@@ -249,7 +210,7 @@ class MyFileList {
   constructor() {
     this.selectList = new SelectListView({
       className: "my-package my-file-list",
-      items: [], // initialize required
+      items: [],
       filterKeyForItem: (item) => item.name,
       emptyMessage: "No files found",
       helpMarkdown: fs.readFileSync(path.join(__dirname, "help.md"), "utf8"),
@@ -258,12 +219,7 @@ class MyFileList {
       },
       elementForItem: (item, { index, filterKey, matchIndices }) => {
         const li = document.createElement("li");
-        // filterKey is what was matched, matchIndices are positions in filterKey
-        // matchIndices is a lazy getter - only computed when accessed
         li.appendChild(SelectListView.highlightMatches(filterKey, matchIndices));
-        li.addEventListener("contextmenu", () => {
-          this.selectList.selectIndex(index);
-        });
         return li;
       },
       didConfirmSelection: (item) => {
@@ -276,11 +232,6 @@ class MyFileList {
     });
   }
 
-  loadFiles() {
-    // Load files and update items
-    this.selectList.update({ items: this.files });
-  }
-
   toggle() {
     this.selectList.toggle();
   }
@@ -291,119 +242,6 @@ class MyFileList {
 }
 ```
 
-### Advanced: Custom Score Modifier
+## Contributing
 
-Use `filterScoreModifier` to customize ranking:
-
-```js
-const selectList = new SelectListView({
-  items: files,
-  elementForItem: (item) => {
-    const li = document.createElement("li");
-    li.textContent = item.path;
-    return li;
-  },
-  filterKeyForItem: (item) => item.path,
-  // Boost score by proximity (items closer to current file rank higher)
-  filterScoreModifier: (score, item) => score / item.distance,
-  didConfirmSelection: (item) => {
-    atom.workspace.open(item.path);
-  },
-});
-```
-
-## Migration from atom-select-list
-
-If you're migrating from `atom-select-list`, here are the key changes:
-
-### Package.json
-
-```diff
-"dependencies": {
--  "atom-select-list": ...,
-+  "pulsar-select-list": ...
-}
-```
-
-### Import
-
-```diff
--const SelectListView = require('atom-select-list')
-+const SelectListView = require('pulsar-select-list')
-```
-
-### Panel Management
-
-The component now manages its own panel. Remove custom panel handling:
-
-```diff
--this.panel = null
--this.previouslyFocusedElement = null
-
-this.selectList = new SelectListView({
-+  className: 'my-list',
-   items: [],
-+  willShow: () => this.onWillShow(),
-   // ...
-})
--this.selectList.element.classList.add('my-list')
-
--showView() {
--  this.previouslyFocusedElement = document.activeElement
--  if (!this.panel) {
--    this.panel = atom.workspace.addModalPanel({ item: this.selectList })
--  }
--  this.panel.show()
--  this.selectList.focus()
--}
--
--hideView() {
--  this.panel.hide()
--  if (this.previouslyFocusedElement) {
--    this.previouslyFocusedElement.focus()
--  }
--}
--
--toggleView() {
--  if (this.panel && this.panel.isVisible()) {
--    this.hideView()
--  } else {
--    this.showView()
--  }
--}
-
-// Use built-in methods:
--this.toggleView()
-+this.selectList.toggle()
-
--this.hideView()
-+this.selectList.hide()
-```
-
-### Diacritics
-
-Replace external diacritics library with built-in static method:
-
-```diff
--const Diacritics = require('diacritic')
-
--Diacritics.clean(text)
-+SelectListView.removeDiacritics(text)
-```
-
-### Match Highlighting
-
-Use `filterKey` and `matchIndices` from the options parameter (lazy getter - only computed when accessed):
-
-```diff
--elementForItem(item, options) {
--  const query = this.query || ''
--  const matches = query
--    ? atom.ui.fuzzyMatcher.match(item.name, query, { recordMatchIndexes: true }).matchIndexes
--    : []
--  el.appendChild(SelectListView.highlightMatches(item.name, matches))
-+elementForItem(item, { filterKey, matchIndices }) {
-+  // matchIndices references positions in filterKey
-+  el.appendChild(SelectListView.highlightMatches(filterKey, matchIndices))
-}
-```
+Got ideas to make this package better, found a bug, or want to help add new features? Just drop your thoughts on GitHub — any feedback's welcome!
