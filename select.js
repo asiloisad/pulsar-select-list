@@ -605,6 +605,8 @@ class SelectListView {
 
     if (this.props.removeDiacritics) {
       query = Diacritics.clean(query);
+      // Store cleaned query so getMatchIndices uses the same query
+      this.processedQuery = query;
     }
 
     // Check if we need to rebuild candidates (items changed)
