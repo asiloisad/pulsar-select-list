@@ -1042,11 +1042,15 @@ function createTwoLineItem({ primary, secondary, icon }) {
   if (icon && icon.length > 0) {
     priLine.classList.add("icon", ...icon);
   }
+
+  const wrapper = document.createElement("span");
+  wrapper.classList.add("primary-text");
   if (typeof primary === "string") {
-    priLine.textContent = primary;
+    wrapper.textContent = primary;
   } else if (primary) {
-    priLine.appendChild(primary);
+    wrapper.appendChild(primary);
   }
+  priLine.appendChild(wrapper);
   li.appendChild(priLine);
 
   if (secondary !== undefined && secondary !== null) {
