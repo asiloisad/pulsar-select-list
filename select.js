@@ -34,7 +34,11 @@ class SelectListView {
     if (!this.props.hasOwnProperty("initialSelectionIndex")) {
       this.props.initialSelectionIndex = 0;
     }
-    this.computeItems(false);
+    if (!this.props.items) {
+      this.props.items = [];
+    }
+    this.buildCandidates();
+    this.filterItems(false);
     this.showHelp = false;
     this.computeHelp();
     this.disposables = new CompositeDisposable();
@@ -46,7 +50,9 @@ class SelectListView {
       );
     }
     this.disposables.add(
-      this.refs.queryEditor.onDidChange(this.didChangeQuery.bind(this))
+      this.refs.queryEditor.onDidChange(() => {
+        this.didChangeQuery();
+      })
     );
     this.disposables.add(
       this.refs.queryEditor.onWillInsertText((event) => {
@@ -114,7 +120,6 @@ class SelectListView {
     this.disposables.dispose();
     this.filterMatcher = null;
     this.indexMatcher = null;
-    this.cachedItems = null;
     this.cachedCandidates = null;
     this.cachedItemByIndex = null;
     if (this.panel) {
@@ -155,7 +160,6 @@ class SelectListView {
 
     this.panel.show();
     this.focus();
-
   }
 
   /**
@@ -172,7 +176,7 @@ class SelectListView {
 
     if (document.priorFocus) {
       document.priorFocus.focus();
-      delete document.priorFocus
+      delete document.priorFocus;
     }
   }
 
@@ -233,65 +237,70 @@ class SelectListView {
   }
 
   update(props = {}) {
-    let shouldComputeItems = false;
+    let shouldBuildCandidates = false;
+    let shouldFilterItems = false;
     let shouldComputeHelp = false;
 
+    // Props that require rebuilding candidates
     if ("items" in props) {
       this.props.items = props.items;
-      this.clearMatcherCache();
-      shouldComputeItems = true;
+      shouldBuildCandidates = true;
     }
 
-    if ("maxResults" in props) {
-      this.props.maxResults = props.maxResults;
-      shouldComputeItems = true;
-    }
-
-    if ("filter" in props) {
-      this.props.filter = props.filter;
-      shouldComputeItems = true;
-    }
-
-    if ("filterQuery" in props) {
-      this.props.filterQuery = props.filterQuery;
-      shouldComputeItems = true;
+    if ("filterKeyForItem" in props) {
+      this.props.filterKeyForItem = props.filterKeyForItem;
+      shouldBuildCandidates = true;
     }
 
     if ("removeDiacritics" in props) {
       this.props.removeDiacritics = props.removeDiacritics;
-      this.clearMatcherCache();
-      shouldComputeItems = true;
+      shouldBuildCandidates = true;
     }
 
-    if ("filterKeyForItem" in props) {
-      this.clearMatcherCache();
-      this.props.filterKeyForItem = props.filterKeyForItem;
-      shouldComputeItems = true;
+    // Props that only require re-filtering
+    if ("maxResults" in props) {
+      this.props.maxResults = props.maxResults;
+      shouldFilterItems = true;
+    }
+
+    if ("filter" in props) {
+      this.props.filter = props.filter;
+      shouldFilterItems = true;
+    }
+
+    if ("filterQuery" in props) {
+      this.props.filterQuery = props.filterQuery;
+      shouldFilterItems = true;
     }
 
     if ("filterScoreModifier" in props) {
       this.props.filterScoreModifier = props.filterScoreModifier;
-      shouldComputeItems = true;
+      shouldFilterItems = true;
     }
 
     if ("algorithm" in props) {
       this.props.algorithm = props.algorithm;
-      shouldComputeItems = true;
+      shouldFilterItems = true;
     }
 
     if ("numThreads" in props) {
       this.props.numThreads = props.numThreads;
-      shouldComputeItems = true;
+      shouldFilterItems = true;
     }
 
     if ("maxGap" in props) {
       this.props.maxGap = props.maxGap;
-      shouldComputeItems = true;
+      shouldFilterItems = true;
+    }
+
+    if ("order" in props) {
+      this.props.order = props.order;
+      shouldFilterItems = true;
     }
 
     if ("query" in props) {
       this.refs.queryEditor.setText(props.query);
-      shouldComputeItems = false;
+      // setText triggers didChangeQuery -> filterItems, so skip explicit filter
     }
 
     if ("selectQuery" in props) {
@@ -300,10 +309,6 @@ class SelectListView {
       } else {
         this.refs.queryEditor.clearSelections();
       }
-    }
-
-    if ("order" in props) {
-      this.props.order = props.order;
     }
 
     if ("emptyMessage" in props) {
@@ -349,8 +354,11 @@ class SelectListView {
       this.refs.queryEditor.setPlaceholderText(props.placeholderText || "");
     }
 
-    if (shouldComputeItems) {
-      this.computeItems();
+    if (shouldBuildCandidates) {
+      this.buildCandidates();
+      this.filterItems();
+    } else if (shouldFilterItems) {
+      this.filterItems();
     }
 
     if (shouldComputeHelp) {
@@ -404,7 +412,7 @@ class SelectListView {
   }
 
   renderItems() {
-    if (this.items.length > 0) {
+    if (this.items && this.items.length > 0) {
       const className = ["list-group"]
         .concat(this.props.itemsClassList || [])
         .join(" ");
@@ -462,7 +470,7 @@ class SelectListView {
   renderLoadingMessage() {
     if (this.props.loadingMessage) {
       return $.div(
-        { className: "loading", style: 'display: flex; align-items: center;' },
+        { className: "loading", style: "display: flex; align-items: center;" },
         $.div(
           { ref: "loadingMessage", className: "loading-message" },
           this.props.loadingMessage
@@ -562,7 +570,7 @@ class SelectListView {
     }
 
     this.hideHelp();
-    this.computeItems();
+    this.filterItems();
   }
 
   didClickItem(itemIndex) {
@@ -570,10 +578,15 @@ class SelectListView {
     this.confirmSelection();
   }
 
-  computeItems(updateComponent) {
+  /**
+   * Filters items based on current query.
+   * Called on query change (uses existing candidates).
+   */
+  filterItems(updateComponent) {
     this.listItems = null;
     this.matchIndicesMap = new Map();
     this.filterKeyMap = new Map();
+
     const filterFn = this.props.filter || this.fuzzyFilter.bind(this);
     this.processedQuery = this.getFilterQuery();
     this.items = filterFn(this.props.items.slice(), this.processedQuery);
@@ -588,104 +601,63 @@ class SelectListView {
   }
 
   /**
-   * Clears the cached matcher and related data.
+   * Builds candidates array and initializes the matcher.
+   * Called when items or filter settings change.
    */
-  clearMatcherCache() {
-    this.cachedItems = null;
-    this.cachedCandidates = null;
-    this.cachedItemByIndex = null;
-    // Note: we keep filterMatcher and indexMatcher alive for reuse
+  buildCandidates() {
+    this.candidates = [];
+    this.itemByIndex = [];
+    for (const item of this.props.items) {
+      let filterKey = this.props.filterKeyForItem
+        ? this.props.filterKeyForItem(item)
+        : item;
+      if (this.props.removeDiacritics) {
+        filterKey = Diacritics.clean(filterKey);
+      }
+      this.candidates.push(filterKey);
+      this.itemByIndex.push(item);
+    }
+    if (this.filterMatcher) {
+      atom.ui.fuzzyMatcher.setCandidates(this.filterMatcher, this.candidates);
+    } else {
+      this.filterMatcher = atom.ui.fuzzyMatcher.setCandidates(this.candidates);
+    }
   }
 
   fuzzyFilter(items, query) {
     if (query.length === 0) {
-      this.clearMatcherCache();
       return items;
     }
-
     if (this.props.removeDiacritics) {
       query = Diacritics.clean(query);
-      // Store cleaned query so getMatchIndices uses the same query
       this.processedQuery = query;
     }
-
-    // Check if we need to rebuild candidates (items changed)
-    const needsRebuild = this.cachedItems !== this.props.items;
-
-    let candidates;
-    let itemByIndex;
-
-    if (needsRebuild) {
-      // Build candidates array with index mapping
-      candidates = [];
-      itemByIndex = [];
-
-      for (const item of items) {
-        let filterKey = this.props.filterKeyForItem
-          ? this.props.filterKeyForItem(item)
-          : item;
-        if (this.props.removeDiacritics) {
-          filterKey = Diacritics.clean(filterKey);
-        }
-        candidates.push(filterKey);
-        itemByIndex.push(item);
-      }
-
-      // Create or update the filter matcher
-      if (this.filterMatcher) {
-        // Update existing matcher - preserves lastQuery_ optimization
-        atom.ui.fuzzyMatcher.setCandidates(this.filterMatcher, candidates);
-      } else {
-        this.filterMatcher = atom.ui.fuzzyMatcher.setCandidates(candidates);
-      }
-
-      // Cache for reuse
-      this.cachedItems = this.props.items;
-      this.cachedCandidates = candidates;
-      this.cachedItemByIndex = itemByIndex;
-    } else {
-      // Reuse cached data - matcher benefits from lastQuery_ optimization
-      candidates = this.cachedCandidates;
-      itemByIndex = this.cachedItemByIndex;
-    }
-
-    // Use Matcher - benefits from query extension optimization when reused
     const matchOptions = {
-      recordMatchIndexes: false, // Lazy - compute when displayed
+      recordMatchIndexes: false,
     };
     if (this.props.algorithm) matchOptions.algorithm = this.props.algorithm;
     if (this.props.numThreads) matchOptions.numThreads = this.props.numThreads;
-    if (this.props.maxGap !== undefined) matchOptions.maxGap = this.props.maxGap;
-
+    if (this.props.maxGap !== undefined)
+      matchOptions.maxGap = this.props.maxGap;
     const results = this.filterMatcher.match(query, matchOptions);
-
-    // Apply score modifier if provided and map back to items
     const modifyScore = this.props.filterScoreModifier;
     const scoredItems = [];
-
     for (const result of results) {
-      const item = itemByIndex[result.id];
+      const item = this.itemByIndex[result.id];
       let score = result.score;
-
       if (modifyScore) {
         score = modifyScore(score, item);
       }
-
       if (score > 0) {
-        scoredItems.push({ item, score, filterKey: candidates[result.id] });
+        scoredItems.push({ item, score, filterKey: this.candidates[result.id] });
       }
     }
-
-    // Re-sort if score modifier changed ordering
     if (modifyScore) {
       scoredItems.sort((a, b) => b.score - a.score);
     }
-
-    // Store filterKeys for lazy index calculation
     for (const { item, filterKey } of scoredItems) {
       this.filterKeyMap.set(item, filterKey);
     }
-
     return scoredItems.map((i) => i.item);
   }
 
@@ -745,10 +717,15 @@ class SelectListView {
       maxResults: 1,
       recordMatchIndexes: true,
     };
-    if (this.props.algorithm) indexMatchOptions.algorithm = this.props.algorithm;
-    if (this.props.maxGap !== undefined) indexMatchOptions.maxGap = this.props.maxGap;
+    if (this.props.algorithm)
+      indexMatchOptions.algorithm = this.props.algorithm;
+    if (this.props.maxGap !== undefined)
+      indexMatchOptions.maxGap = this.props.maxGap;
 
-    const results = this.indexMatcher.match(this.processedQuery, indexMatchOptions);
+    const results = this.indexMatcher.match(
+      this.processedQuery,
+      indexMatchOptions
+    );
 
     const indexes = results.length > 0 ? results[0].matchIndexes : null;
     this.matchIndicesMap?.set(item, indexes);
