@@ -36,9 +36,10 @@ class SelectListView {
     }
     if (!this.props.items) {
       this.props.items = [];
+    } else {
+      this.buildCandidates();
+      this.filterItems(false);
     }
-    this.buildCandidates();
-    this.filterItems(false);
     this.showHelp = false;
     this.computeHelp();
     this.disposables = new CompositeDisposable();

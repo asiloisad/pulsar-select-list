@@ -52,7 +52,6 @@ When creating a new instance of a select list, or when calling `update` on an ex
 
 #### Required
 
-- `items: [Object]`: an array containing the objects you want to show in the select list.
 - `elementForItem: (item: Object, options: Object) -> HTMLElement`: a function that is called whenever an item needs to be displayed.
   - `options: Object`:
     - `selected: Boolean`: indicating whether item is selected or not.
@@ -62,6 +61,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 
 #### Optional
 
+- `items: [Object]`: an array containing the objects you want to show in the select list.
 - `className: String`: CSS class name(s) to add to the select list element. Multiple classes can be space-separated.
 - `maxResults: Number`: the number of maximum items that are shown.
 - `filter: (items: [Object], query: String) -> [Object]`: a function that allows to decide which items to show whenever the query changes. By default, it uses Pulsar's built-in fuzzy matcher.
