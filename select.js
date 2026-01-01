@@ -428,7 +428,7 @@ class SelectListView {
           enumerable: true,
         });
         return $(ListItemView, {
-          element: this.props.elementForItem(item, opts),
+          element: this.resolveElement(item, opts),
           selected: selected,
           onclick: () => this.didClickItem(index),
           oncontextmenu: () => this.selectIndex(index),
@@ -738,6 +738,22 @@ class SelectListView {
     return this.items[this.selectionIndex];
   }
 
+  /**
+   * Resolves the element for an item.
+   * If elementForItem returns an HTML element, uses it directly.
+   * If it returns an object, passes it to createTwoLineItem.
+   * @param {*} item - The item to get an element for
+   * @param {Object} opts - Options passed to elementForItem
+   * @returns {HTMLElement} The resolved element
+   */
+  resolveElement(item, opts) {
+    const result = this.props.elementForItem(item, opts);
+    if (result instanceof HTMLElement) {
+      return result;
+    }
+    return createTwoLineItem(result);
+  }
+
   renderItemAtIndex(index) {
     if (!this.listItems || index < 0 || index >= this.listItems.length) return;
     const item = this.items[index];
@@ -751,7 +767,7 @@ class SelectListView {
     });
     const component = this.listItems[index].component;
     component.update({
-      element: this.props.elementForItem(item, opts),
+      element: this.resolveElement(item, opts),
       selected: selected,
       onclick: () => this.didClickItem(index),
       oncontextmenu: () => this.selectIndex(index),
