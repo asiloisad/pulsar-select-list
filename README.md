@@ -2,6 +2,8 @@
 
 Fuzzy-searchable select list component. An [etch component](https://github.com/atom/etch) with keyboard/mouse navigation and built-in panel management.
 
+Fork of [atom-select-list](https://github.com/atom/atom-select-list).
+
 ## Features
 
 - **Fuzzy filtering**: Multiple algorithms including `command-t` for file paths.
@@ -10,39 +12,6 @@ Fuzzy-searchable select list component. An [etch component](https://github.com/a
 - **Lazy match indices**: Match positions computed only when accessed.
 - **Diacritics support**: Accent-insensitive matching option.
 - **Help mode**: Toggle help content in the panel.
-
-## Usage
-
-After installing the module, you can simply require it and use it as a standalone component:
-
-```js
-const SelectListView = require("pulsar-select-list");
-
-const usersSelectList = new SelectListView({
-  items: ["Alice", "Bob", "Carol"],
-  elementForItem: (item) => {
-    const li = document.createElement("li");
-    li.textContent = item;
-    return li;
-  },
-  didConfirmSelection: (item) => {
-    console.log("Selected:", item);
-  },
-});
-
-// Show as modal panel
-usersSelectList.show();
-```
-
-Or within another etch component:
-
-```jsx
-render () {
-  return (
-    <SelectListView items={this.items} />
-  )
-}
-```
 
 ## API
 
@@ -213,7 +182,6 @@ class MyFileList {
       items: [],
       filterKeyForItem: (item) => item.name,
       emptyMessage: "No files found",
-      helpMarkdown: fs.readFileSync(path.join(__dirname, "help.md"), "utf8"),
       willShow: () => {
         this.loadFiles();
       },
