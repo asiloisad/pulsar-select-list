@@ -31,7 +31,7 @@ class SelectListView {
   constructor(props) {
     SelectListView.initializeScheduler();
     this.props = props;
-    if (!this.props.hasOwnProperty("initialSelectionIndex")) {
+    if (!Object.prototype.hasOwnProperty.call(this.props, "initialSelectionIndex")) {
       this.props.initialSelectionIndex = 0;
     }
     if (!this.props.items) {
