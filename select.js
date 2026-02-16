@@ -497,6 +497,7 @@ class SelectListView {
     }
     const isMarkdown = !this.props.helpMessage && this.props.helpMarkdown;
     return $.div({
+      key: "help",
       ref: "helpMessage",
       className: "help-message" + (isMarkdown ? " markdown" : ""),
       innerHTML: this.helpMessage,
