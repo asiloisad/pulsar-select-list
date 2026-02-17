@@ -11,7 +11,7 @@
     "ui"
   ],
   "repository": "https://github.com/asiloisad/pulsar-select-list",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "license": "MIT",
   "main": "select.js",
   "files": [
