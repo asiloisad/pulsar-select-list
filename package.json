@@ -1,0 +1,30 @@
+{
+  "name": "@asiloisad/select-list",
+  "description": "A general-purpose select list for use in Pulsar packages",
+  "keywords": [
+    "pulsar",
+    "atom",
+    "select",
+    "list",
+    "fuzzy",
+    "filter",
+    "ui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asiloisad/pulsar-select-list.git"
+  },
+  "version": "1.5.0",
+  "license": "MIT",
+  "main": "select.js",
+  "files": [
+    "select.js",
+    "select.less",
+    "LICENSE.md",
+    "README.md"
+  ],
+  "dependencies": {
+    "diacritic": "^0.0.2",
+    "etch": "^0.14.0"
+  }
+}
