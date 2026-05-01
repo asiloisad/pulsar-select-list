@@ -44,6 +44,7 @@ class SelectListView {
     this.computeHelp();
     this.disposables = new CompositeDisposable();
     etch.initialize(this);
+    this.disposables.add(atom.textEditors.add(this.refs.queryEditor));
     this.element.classList.add("select-list");
     if (props.className) {
       this.element.classList.add(
