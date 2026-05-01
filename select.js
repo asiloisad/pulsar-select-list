@@ -56,14 +56,6 @@ class SelectListView {
         this.didChangeQuery();
       })
     );
-    this.disposables.add(
-      this.refs.queryEditor.onWillInsertText((event) => {
-        if (event.text === "`") {
-          event.cancel();
-          this.toggleHelp();
-        }
-      })
-    );
     if (props.placeholderText) {
       this.refs.queryEditor.setPlaceholderText(props.placeholderText);
     }
@@ -73,9 +65,18 @@ class SelectListView {
     const editorElement = this.refs.queryEditor.element;
     const didLoseFocus = this.didLoseFocus.bind(this);
     editorElement.addEventListener("blur", didLoseFocus);
+    const didKeyDown = (event) => {
+      if (event.key === "`") {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        this.toggleHelp();
+      }
+    };
+    editorElement.addEventListener("keydown", didKeyDown, true);
     this.disposables.add(
       new Disposable(() => {
         editorElement.removeEventListener("blur", didLoseFocus);
+        editorElement.removeEventListener("keydown", didKeyDown, true);
       })
     );
   }
