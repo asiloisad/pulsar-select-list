@@ -643,6 +643,7 @@ class SelectListView {
     if (this.props.numThreads) matchOptions.numThreads = this.props.numThreads;
     if (this.props.maxGap !== undefined)
       matchOptions.maxGap = this.props.maxGap;
+    if (!this.filterMatcher) return [];
     const results = this.filterMatcher.match(query, matchOptions);
     const modifyScore = this.props.filterScoreModifier;
     const scoredItems = [];
