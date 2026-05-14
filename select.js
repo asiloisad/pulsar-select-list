@@ -18,11 +18,7 @@ class SelectListView {
   }
 
   static initializeScheduler() {
-    if (
-      !SelectListView.schedulerInitialized &&
-      typeof atom !== "undefined" &&
-      atom.views
-    ) {
+    if (!SelectListView.schedulerInitialized && typeof atom !== "undefined" && atom.views) {
       etch.setScheduler(atom.views);
       SelectListView.schedulerInitialized = true;
     }
@@ -47,14 +43,12 @@ class SelectListView {
     this.disposables.add(atom.textEditors.add(this.refs.queryEditor));
     this.element.classList.add("select-list");
     if (props.className) {
-      this.element.classList.add(
-        ...props.className.split(/\s+/).filter(Boolean)
-      );
+      this.element.classList.add(...props.className.split(/\s+/).filter(Boolean));
     }
     this.disposables.add(
       this.refs.queryEditor.onDidChange(() => {
         this.didChangeQuery();
-      })
+      }),
     );
     if (props.placeholderText) {
       this.refs.queryEditor.setPlaceholderText(props.placeholderText);
@@ -77,7 +71,7 @@ class SelectListView {
       new Disposable(() => {
         editorElement.removeEventListener("blur", didLoseFocus);
         editorElement.removeEventListener("keydown", didKeyDown, true);
-      })
+      }),
     );
   }
 
@@ -385,7 +379,7 @@ class SelectListView {
         this.renderLoadingMessage(),
         this.renderInfoMessage(),
         this.renderErrorMessage(),
-        this.renderItems()
+        this.renderItems(),
       );
     }
   }
@@ -414,15 +408,13 @@ class SelectListView {
     return $.div(
       { style: { position: "relative" } },
       $(TextEditor, { ref: "queryEditor", mini: true }),
-      helpToggle
+      helpToggle,
     );
   }
 
   renderItems() {
     if (this.items && this.items.length > 0) {
-      const className = ["list-group"]
-        .concat(this.props.itemsClassList || [])
-        .join(" ");
+      const className = ["list-group"].concat(this.props.itemsClassList || []).join(" ");
 
       this.listItems = this.items.map((item, index) => {
         const selected = this.getSelectedItem() === item;
@@ -443,10 +435,7 @@ class SelectListView {
 
       return $.ol({ className, ref: "items" }, ...this.listItems);
     } else if (!this.props.loadingMessage && this.props.emptyMessage) {
-      return $.div(
-        { ref: "emptyMessage", className: "empty-message" },
-        this.props.emptyMessage
-      );
+      return $.div({ ref: "emptyMessage", className: "empty-message" }, this.props.emptyMessage);
     } else {
       return "";
     }
@@ -454,10 +443,7 @@ class SelectListView {
 
   renderErrorMessage() {
     if (this.props.errorMessage) {
-      return $.div(
-        { ref: "errorMessage", className: "error-message" },
-        this.props.errorMessage
-      );
+      return $.div({ ref: "errorMessage", className: "error-message" }, this.props.errorMessage);
     } else {
       return "";
     }
@@ -465,10 +451,7 @@ class SelectListView {
 
   renderInfoMessage() {
     if (this.props.infoMessage) {
-      return $.div(
-        { ref: "infoMessage", className: "info-message" },
-        this.props.infoMessage
-      );
+      return $.div({ ref: "infoMessage", className: "info-message" }, this.props.infoMessage);
     } else {
       return "";
     }
@@ -478,10 +461,7 @@ class SelectListView {
     if (this.props.loadingMessage) {
       return $.div(
         { className: "loading", style: "display: flex; align-items: center;" },
-        $.div(
-          { ref: "loadingMessage", className: "loading-message" },
-          this.props.loadingMessage
-        ),
+        $.div({ ref: "loadingMessage", className: "loading-message" }, this.props.loadingMessage),
         this.props.loadingSpinner
           ? $.span({
               className: "loading-spinner-tiny inline-block",
@@ -489,11 +469,8 @@ class SelectListView {
             })
           : "",
         this.props.loadingBadge
-          ? $.span(
-              { ref: "loadingBadge", className: "badge" },
-              this.props.loadingBadge
-            )
-          : ""
+          ? $.span({ ref: "loadingBadge", className: "badge" }, this.props.loadingBadge)
+          : "",
       );
     } else {
       return "";
@@ -521,9 +498,7 @@ class SelectListView {
         this.helpMessage = atom.ui.markdown.render(this.props.helpMarkdown);
       } else {
         // Fallback: escape and wrap as text
-        const escaped = this.props.helpMarkdown
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
+        const escaped = this.props.helpMarkdown.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         this.helpMessage = `<p>${escaped}</p>`;
       }
     } else {
@@ -560,9 +535,7 @@ class SelectListView {
   }
 
   getFilterQuery() {
-    return this.props.filterQuery
-      ? this.props.filterQuery(this.getQuery())
-      : this.getQuery();
+    return this.props.filterQuery ? this.props.filterQuery(this.getQuery()) : this.getQuery();
   }
 
   setQueryFromSelection() {
@@ -619,9 +592,7 @@ class SelectListView {
     this.candidates = [];
     this.itemByIndex = [];
     for (const item of this.props.items) {
-      let filterKey = this.props.filterKeyForItem
-        ? this.props.filterKeyForItem(item)
-        : item;
+      let filterKey = this.props.filterKeyForItem ? this.props.filterKeyForItem(item) : item;
       if (this.props.removeDiacritics) {
         filterKey = Diacritics.clean(filterKey);
       }
@@ -648,8 +619,7 @@ class SelectListView {
     };
     if (this.props.algorithm) matchOptions.algorithm = this.props.algorithm;
     if (this.props.numThreads) matchOptions.numThreads = this.props.numThreads;
-    if (this.props.maxGap !== undefined)
-      matchOptions.maxGap = this.props.maxGap;
+    if (this.props.maxGap !== undefined) matchOptions.maxGap = this.props.maxGap;
     if (!this.filterMatcher) return [];
     const results = this.filterMatcher.match(query, matchOptions);
     const modifyScore = this.props.filterScoreModifier;
@@ -661,7 +631,11 @@ class SelectListView {
         score = modifyScore(score, item);
       }
       if (score > 0) {
-        scoredItems.push({ item, score, filterKey: this.candidates[result.id] });
+        scoredItems.push({
+          item,
+          score,
+          filterKey: this.candidates[result.id],
+        });
       }
     }
     if (modifyScore) {
@@ -729,15 +703,10 @@ class SelectListView {
       maxResults: 1,
       recordMatchIndexes: true,
     };
-    if (this.props.algorithm)
-      indexMatchOptions.algorithm = this.props.algorithm;
-    if (this.props.maxGap !== undefined)
-      indexMatchOptions.maxGap = this.props.maxGap;
+    if (this.props.algorithm) indexMatchOptions.algorithm = this.props.algorithm;
+    if (this.props.maxGap !== undefined) indexMatchOptions.maxGap = this.props.maxGap;
 
-    const results = this.indexMatcher.match(
-      this.processedQuery,
-      indexMatchOptions
-    );
+    const results = this.indexMatcher.match(this.processedQuery, indexMatchOptions);
 
     const indexes = results.length > 0 ? results[0].matchIndexes : null;
     this.matchIndicesMap?.set(item, indexes);
@@ -837,9 +806,7 @@ class SelectListView {
   selectItem(item) {
     const index = this.items.indexOf(item);
     if (index === -1) {
-      throw new Error(
-        "Cannot select the specified item because it does not exist."
-      );
+      throw new Error("Cannot select the specified item because it does not exist.");
     } else {
       return this.selectIndex(index);
     }
@@ -1008,9 +975,7 @@ function highlightMatches(text, matchIndices, options = {}) {
         fragment.appendChild(span);
         matchChars = "";
       }
-      fragment.appendChild(
-        document.createTextNode(text.slice(lastIndex, index))
-      );
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex, index)));
     }
     matchChars += text[index];
     lastIndex = index + 1;

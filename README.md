@@ -155,7 +155,7 @@ elementForItem: (item, { filterKey, matchIndices }) => {
   const li = document.createElement("li");
   li.appendChild(SelectListView.highlightMatches(filterKey, matchIndices));
   return li;
-}
+};
 ```
 
 #### `SelectListView.removeDiacritics(str)`
@@ -177,7 +177,7 @@ elementForItem: (item, { filterKey, matchIndices }) => {
     secondary: item.description,
     icon: ["icon-file-text"],
   });
-}
+};
 ```
 
 ## Example
