@@ -340,6 +340,10 @@ class SelectListView {
       this.props.loadingMessage = props.loadingMessage;
     }
 
+    if ("loadingSpinner" in props) {
+      this.props.loadingSpinner = props.loadingSpinner;
+    }
+
     if ("loadingBadge" in props) {
       this.props.loadingBadge = props.loadingBadge;
     }
@@ -479,7 +483,10 @@ class SelectListView {
           this.props.loadingMessage
         ),
         this.props.loadingSpinner
-          ? $.span({ className: "loading-spinner-tiny inline-block" })
+          ? $.span({
+              className: "loading-spinner-tiny inline-block",
+              style: { marginLeft: "0.5em" },
+            })
           : "",
         this.props.loadingBadge
           ? $.span(

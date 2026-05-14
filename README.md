@@ -47,7 +47,7 @@ When creating a new instance of a select list, or when calling `update` on an ex
 - `emptyMessage: String`: a string shown when the list is empty.
 - `errorMessage: String`: a string that needs to be set when you want to notify the user that an error occurred.
 - `infoMessage: String`: a string that needs to be set when you want to provide some information to the user.
-- `helpMessage: String|Array`: content to display when help is toggled. Can be a string or JSX array for rich formatting.
+- `helpMessage: String`: HTML content to display when help is toggled.
 - `helpMarkdown: String`: markdown content to display when help is toggled. Rendered using Pulsar's built-in markdown renderer.
 - `loadingMessage: String`: a string that needs to be set when you are loading items in the background.
 - `loadingSpinner: Boolean`: show spinner next to loading message.
@@ -117,6 +117,18 @@ By default, the component registers these commands on its element:
 - `cancelSelection()`: Cancels the selection.
 
 ### Static methods
+
+#### `SelectListView.setScheduler(scheduler)`
+
+Sets the etch scheduler used by the component. The component initializes this to `atom.views` automatically when possible.
+
+#### `SelectListView.getScheduler()`
+
+Returns the current etch scheduler.
+
+#### `SelectListView.initializeScheduler()`
+
+Initializes the etch scheduler from `atom.views` if it has not already been configured.
 
 #### `SelectListView.getMatchIndices(text, query, options)`
 

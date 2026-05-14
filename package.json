@@ -19,7 +19,6 @@
   "main": "select.js",
   "files": [
     "select.js",
-    "select.less",
     "LICENSE.md",
     "README.md"
   ],
