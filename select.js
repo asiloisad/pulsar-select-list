@@ -58,7 +58,9 @@ class SelectListView {
     }
     const editorElement = this.refs.queryEditor.element;
     const didLoseFocus = this.didLoseFocus.bind(this);
+    const didMouseDownOnElement = this.didMouseDownOnElement.bind(this);
     editorElement.addEventListener("blur", didLoseFocus);
+    this.element.addEventListener("mousedown", didMouseDownOnElement);
     const didKeyDown = (event) => {
       if (event.key === "`") {
         event.stopImmediatePropagation();
@@ -70,6 +72,7 @@ class SelectListView {
     this.disposables.add(
       new Disposable(() => {
         editorElement.removeEventListener("blur", didLoseFocus);
+        this.element.removeEventListener("mousedown", didMouseDownOnElement);
         editorElement.removeEventListener("keydown", didKeyDown, true);
       }),
     );
@@ -100,6 +103,19 @@ class SelectListView {
       if (this.element.contains(document.activeElement)) return;
       this.cancelSelection();
     });
+  }
+
+  /**
+   * Keeps clicks on the select-list's own surface from moving focus away.
+   * CSS pseudo-elements dispatch events as their owning element.
+   * @param {MouseEvent} event - The mousedown event
+   */
+  didMouseDownOnElement(event) {
+    // Let the query editor handle its own mousedown (cursor placement, selection)
+    if (this.refs.queryEditor.element.contains(event.target)) return;
+    // Anywhere else inside the panel (messages, list, surface): keep focus on editor
+    event.preventDefault();
+    this.refs.queryEditor.element.focus();
   }
 
   /**
